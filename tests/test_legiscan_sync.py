@@ -61,3 +61,54 @@ def test_sync_degrades_at_80_percent_budget(tmp_path):
         stats = sync_state("CA", client, cache, budget_limit=10, today_year=2026)
         assert stats["degraded"] is True
         assert client.dataset_fetches == 0
+
+
+def test_sync_skips_malformed_dataset_and_masterlist_entries(tmp_path):
+    class MalformedClient(FakeClient):
+        def get_dataset_list(self, state):
+            return [{"dataset_hash": "h9"},  # no session_id -> skipped
+                    {"session_id": 2172, "dataset_hash": "h1", "access_key": "ak"}]
+
+        def get_master_list_raw(self, session_id):
+            return {"session": {"session_id": session_id},
+                    "0": {"bill_id": 111},  # missing number/change_hash -> entry skipped
+                    "1": {"bill_id": 112, "number": "AB13", "change_hash": "h13"}}
+
+    client = MalformedClient()
+    with LegiScanCache(tmp_path / "cache.db") as cache:
+        stats = sync_state("CA", client, cache, today_year=2026)
+        assert stats["datasets_ingested"] == 1          # good dataset still ingested
+        assert stats["masterlist_refreshed"] == 1       # session still refreshed
+        numbers = {b["number"] for b in cache.bills_for_session(2172)}
+        assert "AB13" in numbers                        # good entry landed
+
+
+def test_degraded_mode_makes_zero_client_calls(tmp_path):
+    class CountingClient(FakeClient):
+        def __init__(self):
+            super().__init__()
+            self.total_calls = 0
+
+        def get_session_list(self, state):
+            self.total_calls += 1
+            return super().get_session_list(state)
+
+        def get_dataset_list(self, state):
+            self.total_calls += 1
+            return super().get_dataset_list(state)
+
+        def get_dataset(self, session_id, access_key):
+            self.total_calls += 1
+            return super().get_dataset(session_id, access_key)
+
+        def get_master_list_raw(self, session_id):
+            self.total_calls += 1
+            return super().get_master_list_raw(session_id)
+
+    client = CountingClient()
+    with LegiScanCache(tmp_path / "cache.db") as cache:
+        for _ in range(8):
+            cache.add_call("x")
+        stats = sync_state("CA", client, cache, budget_limit=10, today_year=2026)
+        assert stats["degraded"] is True
+        assert client.total_calls == 0
