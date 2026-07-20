@@ -51,12 +51,19 @@ async def run_patrol(settings: Settings, state: str, objective: str = "") -> str
         prompt = f"Patrol {state}." + (f" Objective: {objective}" if objective else "")
 
         result_text = ""
-        with open(transcript_path, "w") as fh:
-            async for msg in query(prompt=prompt, options=options):
-                write_transcript_line(fh, msg)
-                if isinstance(msg, ResultMessage):
-                    result_text = msg.result or ""
-
-        casefile.finish_patrol(patrol_id, {"result_chars": len(result_text)},
-                               str(transcript_path))
+        error: str | None = None
+        try:
+            with open(transcript_path, "w") as fh:
+                async for msg in query(prompt=prompt, options=options):
+                    write_transcript_line(fh, msg)
+                    if isinstance(msg, ResultMessage):
+                        result_text = msg.result or ""
+        except Exception as exc:
+            error = f"{type(exc).__name__}: {exc}"
+            raise
+        finally:
+            stats: dict = {"result_chars": len(result_text)}
+            if error is not None:
+                stats["error"] = error
+            casefile.finish_patrol(patrol_id, stats, str(transcript_path))
     return result_text
