@@ -42,3 +42,24 @@ def test_patrol_lifecycle(tmp_path):
         pid = store.start_patrol(scope="CA")
         store.finish_patrol(pid, {"anomalies_new": 2}, "runs/1.jsonl")
         assert pid == 1
+
+
+def test_upsert_race_falls_back_to_recurring(tmp_path, monkeypatch):
+    with CaseFileStore(tmp_path / "casefile.db") as store:
+        a = make_anomaly()
+        # Simulate losing the check-then-insert race: SELECT sees nothing,
+        # but the row appears before our INSERT executes.
+        real_execute = store._execute
+        state = {"primed": False}
+
+        def racing_execute(sql, params=()):
+            if sql.strip().startswith("INSERT INTO anomalies") and not state["primed"]:
+                state["primed"] = True
+                with CaseFileStore(tmp_path / "casefile.db") as rival:
+                    rival.upsert_anomaly(make_anomaly())
+            return real_execute(sql, params)
+
+        monkeypatch.setattr(store, "_execute", racing_execute)
+        kind, aid = store.upsert_anomaly(a)
+        assert kind == "recurring"
+        assert store.get_anomaly(aid)["fingerprint"] == a.fingerprint

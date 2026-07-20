@@ -34,6 +34,7 @@ class CaseFileStore:
         self._conn = sqlite3.connect(db_path)
         self._conn.row_factory = sqlite3.Row
         self._conn.execute("PRAGMA journal_mode=WAL")
+        self._conn.execute("PRAGMA busy_timeout=5000")
         self._conn.executescript(_SCHEMA)
 
     def __enter__(self):
@@ -45,27 +46,44 @@ class CaseFileStore:
     def close(self) -> None:
         self._conn.close()
 
+    def _execute(self, sql: str, params: tuple = ()):
+        """Helper for execute calls in upsert_anomaly, exposed for monkeypatching in tests."""
+        return self._conn.execute(sql, params)
+
     def upsert_anomaly(self, a: Anomaly) -> tuple[str, int]:
         now = _now()
-        existing = self._conn.execute(
+        existing = self._execute(
             "SELECT id FROM anomalies WHERE fingerprint = ?", (a.fingerprint,)
         ).fetchone()
         if existing:
-            self._conn.execute(
+            self._execute(
                 """UPDATE anomalies SET last_seen = ?, legiscan_value = ?, quorum_value = ?,
                           evidence_json = ? WHERE id = ?""",
                 (now, a.legiscan_value, a.quorum_value, json.dumps(a.evidence), existing["id"]),
             )
             self._conn.commit()
             return "recurring", existing["id"]
-        cur = self._conn.execute(
-            """INSERT INTO anomalies (fingerprint, gap_type, region, session_key,
-                   bill_number_norm, field, legiscan_value, quorum_value, evidence_json,
-                   status, first_seen, last_seen)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'new', ?, ?)""",
-            (a.fingerprint, a.gap_type, a.region, a.session_key, a.bill_number_norm,
-             a.field, a.legiscan_value, a.quorum_value, json.dumps(a.evidence), now, now),
-        )
+        try:
+            cur = self._execute(
+                """INSERT INTO anomalies (fingerprint, gap_type, region, session_key,
+                       bill_number_norm, field, legiscan_value, quorum_value, evidence_json,
+                       status, first_seen, last_seen)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'new', ?, ?)""",
+                (a.fingerprint, a.gap_type, a.region, a.session_key, a.bill_number_norm,
+                 a.field, a.legiscan_value, a.quorum_value, json.dumps(a.evidence), now, now),
+            )
+        except sqlite3.IntegrityError:
+            # Lost a check-then-insert race with a concurrent writer -> treat as recurring
+            row = self._execute(
+                "SELECT id FROM anomalies WHERE fingerprint = ?", (a.fingerprint,)
+            ).fetchone()
+            self._execute(
+                """UPDATE anomalies SET last_seen = ?, legiscan_value = ?, quorum_value = ?,
+                          evidence_json = ? WHERE id = ?""",
+                (now, a.legiscan_value, a.quorum_value, json.dumps(a.evidence), row["id"]),
+            )
+            self._conn.commit()
+            return "recurring", row["id"]
         self._conn.commit()
         return "new", cur.lastrowid
 
