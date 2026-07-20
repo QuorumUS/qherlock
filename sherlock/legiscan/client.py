@@ -27,8 +27,12 @@ class LegiScanClient:
 
     def _get(self, op: str, **params) -> dict:
         self._on_call(op)
-        resp = self._http.get("/", params={"key": self._key, "op": op, **params})
-        resp.raise_for_status()
+        try:
+            resp = self._http.get("/", params={"key": self._key, "op": op, **params})
+        except httpx.HTTPError as exc:
+            raise LegiScanError(f"{op} failed: {type(exc).__name__}") from None
+        if resp.status_code != 200:
+            raise LegiScanError(f"{op} failed: HTTP {resp.status_code}")
         payload = resp.json()
         if payload.get("status") != "OK":
             raise LegiScanError(f"{op} failed: {payload.get('alert', payload)}")

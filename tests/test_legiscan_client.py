@@ -36,3 +36,23 @@ def test_non_ok_status_raises():
     client = make_client(handler)
     with pytest.raises(LegiScanError):
         client.get_session_list("CA")
+
+
+def test_http_error_status_does_not_leak_key():
+    def handler(request):
+        return httpx.Response(500)
+
+    client = make_client(handler)
+    with pytest.raises(LegiScanError) as excinfo:
+        client.get_session_list("CA")
+    assert "key=" not in str(excinfo.value)
+
+
+def test_transport_error_does_not_leak_key():
+    def handler(request):
+        raise httpx.ConnectError("boom")
+
+    client = make_client(handler)
+    with pytest.raises(LegiScanError) as excinfo:
+        client.get_session_list("CA")
+    assert "key=" not in str(excinfo.value)

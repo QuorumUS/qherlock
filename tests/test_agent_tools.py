@@ -3,6 +3,8 @@ import json
 import pytest
 
 from sherlock.agent.tools import TOOL_NAMES, build_toolkit
+from sherlock.casefiles.models import Anomaly
+from sherlock.casefiles.store import CaseFileStore
 from sherlock.config import Settings
 
 
@@ -33,6 +35,17 @@ async def test_list_anomalies_empty_db(settings):
     result = await handlers["list_anomalies"]({})
     payload = json.loads(result["content"][0]["text"])
     assert payload["anomalies"] == []
+
+
+async def test_list_anomalies_filters_state_case_insensitively(settings):
+    with CaseFileStore(settings.data_dir / "casefile.db") as casefile:
+        casefile.upsert_anomaly(
+            Anomaly(gap_type="missing_bill", region="CA", session_key="1", bill_number_norm="AB1")
+        )
+    _server, handlers = build_toolkit(settings, return_handlers=True)
+    result = await handlers["list_anomalies"]({"state": "ca"})
+    payload = json.loads(result["content"][0]["text"])
+    assert len(payload["anomalies"]) == 1
 
 
 async def test_get_anomaly_not_found(settings):

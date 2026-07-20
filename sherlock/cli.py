@@ -34,6 +34,9 @@ class _NoNetworkClient:
     def get_master_list_raw(self, session_id):
         return {"session": {}}
 
+    def close(self) -> None:
+        pass
+
 
 @app.command()
 def sync(state: str = typer.Option("CA", "--state")) -> None:
@@ -47,8 +50,7 @@ def sync(state: str = typer.Option("CA", "--state")) -> None:
         try:
             stats = sync_state(state.upper(), client, cache)
         finally:
-            if hasattr(client, 'close'):
-                client.close()
+            client.close()
     typer.echo(json.dumps(stats, indent=2))
 
 
@@ -61,7 +63,11 @@ def diff(state: str = typer.Option("CA", "--state")) -> None:
         raise typer.Exit(code=1)
     with LegiScanCache(s.data_dir / "cache.db") as cache, \
          CaseFileStore(s.data_dir / "casefile.db") as casefile:
-        conn = reader.connect(s.quorum_replica_dsn)
+        try:
+            conn = reader.connect(s.quorum_replica_dsn)
+        except Exception as exc:
+            typer.echo(f"error: replica connection failed: {type(exc).__name__}")
+            raise typer.Exit(code=2)
         try:
             ok, err = reader.check_schema(conn)
             if not ok:

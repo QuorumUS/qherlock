@@ -29,7 +29,8 @@ def test_build_options_wires_model_tools_and_turns(tmp_path, monkeypatch):
     assert options.allowed_tools == list(TOOL_NAMES)
     assert options.system_prompt == DOCTRINE
     assert "sherlock" in options.mcp_servers
-    assert options.permission_mode == "bypassPermissions"
+    assert options.tools == []
+    assert options.permission_mode is None
     assert options.mcp_servers["sherlock"] is server
 
 

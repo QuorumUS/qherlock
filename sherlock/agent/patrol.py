@@ -26,14 +26,17 @@ Rules:
 
 
 def build_options(settings: Settings, server) -> ClaudeAgentOptions:
-    return ClaudeAgentOptions(
+    kwargs: dict = dict(
         model=settings.sherlock_model,
         max_turns=settings.sherlock_max_turns,
         system_prompt=DOCTRINE,
         mcp_servers={"sherlock": server},
-        allowed_tools=list(TOOL_NAMES),
-        permission_mode="bypassPermissions",  # only our 4 read-only tools are allowed
+        tools=[],  # disable every built-in tool (Bash, Write, Edit, ...) — only our MCP tools remain
+        allowed_tools=list(TOOL_NAMES),  # auto-approve our 4 read-only tools; nothing else is offered
     )
+    if settings.anthropic_api_key:
+        kwargs["env"] = {"ANTHROPIC_API_KEY": settings.anthropic_api_key}
+    return ClaudeAgentOptions(**kwargs)
 
 
 def write_transcript_line(fh, msg) -> None:

@@ -1,5 +1,3 @@
-import json
-
 from sherlock.casefiles.models import Anomaly
 from sherlock.casefiles.store import CaseFileStore
 from sherlock.diff.matchers import match_sessions, normalize_bill_number

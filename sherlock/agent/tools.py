@@ -78,7 +78,8 @@ def build_toolkit(settings: Settings, return_handlers: bool = False):
     async def list_anomalies_handler(args: dict) -> dict:
         with CaseFileStore(casefile_path) as casefile:
             rows = casefile.list_anomalies(
-                region=args.get("state") or None, gap_type=args.get("gap_type") or None,
+                region=(args.get("state") or "").upper() or None,
+                gap_type=args.get("gap_type") or None,
                 status=args.get("status") or None, limit=10,
             )
         return _text({"anomalies": rows})
