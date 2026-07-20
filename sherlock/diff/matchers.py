@@ -10,7 +10,7 @@ _NUM_RE = re.compile(r"^([A-Z]+)0*(\d+)$")
 
 
 def normalize_bill_number(state: str, raw: str | int | None) -> str:
-    s = _CLEAN_RE.sub("", str(raw or "").upper())
+    s = _CLEAN_RE.sub("", ("" if raw is None else str(raw)).upper())
     m = _NUM_RE.match(s)
     if not m:
         return s

@@ -7,6 +7,7 @@ def test_normalize_strips_and_uppercases():
     assert normalize_bill_number("CA", "S.B. 5") == "SB5"
     assert normalize_bill_number("TX", None) == ""
     assert normalize_bill_number("CA", 12) == "12"
+    assert normalize_bill_number("CA", 0) == "0"
 
 
 def test_normalize_applies_ca_prefix_map():
