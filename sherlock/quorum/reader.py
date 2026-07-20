@@ -22,6 +22,11 @@ _BILLS_SQL = """
 SELECT id, label, number FROM bill_bill WHERE session_id = {ph}
 """
 
+_SCHEMA_PROBES = (
+    ("app_legsession", _SESSIONS_SQL, ("x",)),
+    ("bill_bill", _BILLS_SQL, (0,)),
+)
+
 
 @dataclass
 class SessionRow:
@@ -65,9 +70,9 @@ def get_bills_for_session(conn, session_id: int) -> list[BillRow]:
 
 def check_schema(conn) -> tuple[bool, str]:
     """Startup smoke test (spec §7): schema drift must alert, not crash-loop."""
-    for table, sql in (("app_legsession", _SESSIONS_SQL), ("bill_bill", _BILLS_SQL)):
+    for table, sql, params in _SCHEMA_PROBES:
         try:
-            _execute(conn, sql + " LIMIT 1", ("x",) if "region_abbrev" in sql else (0,))
-        except Exception as exc:  # noqa: BLE001 — any driver error means drift
+            _execute(conn, sql + " LIMIT 1", params)
+        except Exception as exc:  # any driver error means drift
             return False, f"schema check failed for {table}: {exc}"
     return True, ""
