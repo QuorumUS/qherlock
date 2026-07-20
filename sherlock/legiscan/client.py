@@ -22,6 +22,9 @@ class LegiScanClient:
         self._http = http or httpx.Client(base_url=BASE_URL, timeout=120)
         self._on_call = on_call or (lambda op: None)
 
+    def close(self) -> None:
+        self._http.close()
+
     def _get(self, op: str, **params) -> dict:
         self._on_call(op)
         resp = self._http.get("/", params={"key": self._key, "op": op, **params})

@@ -13,12 +13,12 @@ def settings(tmp_path, monkeypatch):
 
 
 def test_tool_names_are_fully_qualified():
-    assert TOOL_NAMES == [
+    assert TOOL_NAMES == (
         "mcp__sherlock__legiscan_sync",
         "mcp__sherlock__diff_state",
         "mcp__sherlock__list_anomalies",
         "mcp__sherlock__get_anomaly",
-    ]
+    )
 
 
 async def test_diff_state_without_dsn_returns_error_payload(settings):
@@ -40,3 +40,20 @@ async def test_get_anomaly_not_found(settings):
     result = await handlers["get_anomaly"]({"anomaly_id": 999})
     payload = json.loads(result["content"][0]["text"])
     assert "not found" in payload["error"]
+
+
+async def test_legiscan_sync_wires_quota_to_cache(settings, monkeypatch):
+    from sherlock.agent import tools as tools_mod
+    from sherlock.legiscan.cache import LegiScanCache
+
+    def fake_sync(state, client, cache, **kwargs):
+        client._on_call("getSessionList")  # simulate one API call through the hook
+        return {"state": state, "degraded": False}
+
+    monkeypatch.setattr(tools_mod, "sync_state", fake_sync)
+    _server, handlers = tools_mod.build_toolkit(settings, return_handlers=True)
+    result = await handlers["legiscan_sync"]({"state": "ca"})
+    payload = json.loads(result["content"][0]["text"])
+    assert payload["state"] == "CA"
+    with LegiScanCache(settings.data_dir / "cache.db") as cache:
+        assert cache.calls_this_month() == 1

@@ -10,12 +10,12 @@ from sherlock.legiscan.client import LegiScanClient
 from sherlock.legiscan.sync import sync_state
 from sherlock.quorum import reader
 
-TOOL_NAMES = [
+TOOL_NAMES = (
     "mcp__sherlock__legiscan_sync",
     "mcp__sherlock__diff_state",
     "mcp__sherlock__list_anomalies",
     "mcp__sherlock__get_anomaly",
-]
+)
 
 _EVIDENCE_CAP = 1500
 
@@ -42,7 +42,10 @@ def build_toolkit(settings: Settings, return_handlers: bool = False):
     async def legiscan_sync_handler(args: dict) -> dict:
         with LegiScanCache(cache_path) as cache:
             client = LegiScanClient(settings.legiscan_api_key, on_call=lambda op: cache.add_call(op))
-            stats = sync_state(args["state"].upper(), client, cache)
+            try:
+                stats = sync_state(args["state"].upper(), client, cache)
+            finally:
+                client.close()
         return _text(stats)
 
     @tool("diff_state", "Diff LegiScan cache vs Quorum replica for a state's current "
@@ -53,7 +56,10 @@ def build_toolkit(settings: Settings, return_handlers: bool = False):
             return _text({"error": "no QUORUM_REPLICA_DSN configured — start a Teleport "
                                    "tunnel (tsh proxy db) and set it in .env"})
         with LegiScanCache(cache_path) as cache, CaseFileStore(casefile_path) as casefile:
-            conn = reader.connect(settings.quorum_replica_dsn)
+            try:
+                conn = reader.connect(settings.quorum_replica_dsn)
+            except Exception as exc:
+                return _text({"error": f"replica connection failed: {exc}"})
             try:
                 ok, err = reader.check_schema(conn)
                 if not ok:
@@ -65,12 +71,15 @@ def build_toolkit(settings: Settings, return_handlers: bool = False):
 
     @tool("list_anomalies", "List recorded anomalies from case files. Optional filters: "
           "state, gap_type, status. Max 10 rows.",
-          {"state": str, "gap_type": str, "status": str})
+          {"type": "object",
+           "properties": {"state": {"type": "string"}, "gap_type": {"type": "string"},
+                           "status": {"type": "string"}},
+           "required": []})
     async def list_anomalies_handler(args: dict) -> dict:
         with CaseFileStore(casefile_path) as casefile:
             rows = casefile.list_anomalies(
-                region=args.get("state"), gap_type=args.get("gap_type"),
-                status=args.get("status"), limit=10,
+                region=args.get("state") or None, gap_type=args.get("gap_type") or None,
+                status=args.get("status") or None, limit=10,
             )
         return _text({"anomalies": rows})
 
