@@ -34,6 +34,22 @@ def test_build_options_wires_model_tools_and_turns(tmp_path, monkeypatch):
     assert options.mcp_servers["sherlock"] is server
 
 
+def test_build_options_prefers_oauth_token_over_api_key(tmp_path, monkeypatch):
+    settings = make_settings(tmp_path, monkeypatch)
+    settings.claude_code_oauth_token = "oat-test-token"
+    settings.anthropic_api_key = "sk-test-key"
+    server, _ = build_toolkit(settings)
+    options = build_options(settings, server)
+    assert options.env == {"CLAUDE_CODE_OAUTH_TOKEN": "oat-test-token"}
+
+
+def test_build_options_no_credentials_uses_logged_in_claude(tmp_path, monkeypatch):
+    settings = make_settings(tmp_path, monkeypatch)
+    server, _ = build_toolkit(settings)
+    options = build_options(settings, server)
+    assert not options.env  # spawned claude CLI falls back to the host's logged-in OAuth
+
+
 def test_write_transcript_line_is_jsonl():
     class FakeMsg:
         def __str__(self):

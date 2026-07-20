@@ -236,7 +236,14 @@ runs/           # patrol transcripts (gitignored)
 docs/superpowers/specs/
 ```
 
-Env (`.env`): `LEGISCAN_API_KEY` (present), `ANTHROPIC_API_KEY`, `SLACK_WEBHOOK_URL`,
+**Claude auth (decided 2026-07-20, Virgil pattern):** the Agent SDK spawns the Claude Code CLI,
+which authenticates via Claude Code OAuth — on the laptop the host's logged-in credentials are
+used with no configuration at all; for headless hosts set `CLAUDE_CODE_OAUTH_TOKEN` (from
+`claude setup-token`). `ANTHROPIC_API_KEY` is accepted as an explicit fallback only; OAuth wins
+when both are set. This matches QuorumUS/virgil's auth (subscription OAuth, no API-key billing).
+
+Env (`.env`): `LEGISCAN_API_KEY` (present), `CLAUDE_CODE_OAUTH_TOKEN` (headless only; see auth
+above), `ANTHROPIC_API_KEY` (optional fallback), `SLACK_WEBHOOK_URL`,
 `QUORUM_REPLICA_DSN`, `SHERLOCK_MODEL=claude-sonnet-5`, `SHERLOCK_LIVE=0`,
 `SHERLOCK_KILL_SWITCH=0`, `SHERLOCK_MAX_FIXES_PER_CYCLE=25`, `SHERLOCK_MAX_FIXES_PER_STATE=10`,
 `SHERLOCK_FRESHNESS_SLA_HOURS=72`, `SHERLOCK_MAX_TURNS=100`. Teleport via standard `tsh login`

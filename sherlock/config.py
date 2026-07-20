@@ -7,6 +7,7 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
     legiscan_api_key: str
+    claude_code_oauth_token: str = ""
     anthropic_api_key: str = ""
     quorum_replica_dsn: str = ""
     sherlock_model: str = "claude-sonnet-5"

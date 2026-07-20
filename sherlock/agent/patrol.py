@@ -34,8 +34,11 @@ def build_options(settings: Settings, server) -> ClaudeAgentOptions:
         tools=[],  # disable every built-in tool (Bash, Write, Edit, ...) — only our MCP tools remain
         allowed_tools=list(TOOL_NAMES),  # auto-approve our 4 read-only tools; nothing else is offered
     )
-    if settings.anthropic_api_key:
+    if settings.claude_code_oauth_token:
+        kwargs["env"] = {"CLAUDE_CODE_OAUTH_TOKEN": settings.claude_code_oauth_token}
+    elif settings.anthropic_api_key:
         kwargs["env"] = {"ANTHROPIC_API_KEY": settings.anthropic_api_key}
+    # else: the spawned claude CLI uses the host's logged-in OAuth credentials (Virgil pattern)
     return ClaudeAgentOptions(**kwargs)
 
 
