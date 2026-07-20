@@ -90,29 +90,32 @@ class LegiScanCache:
             for name in zf.namelist():
                 if "/bill/" not in name or not name.endswith(".json"):
                     continue
-                bill = json.loads(zf.read(name))["bill"]
-                history = bill.get("history") or []
-                last_action = max((h["date"] for h in history), default=None)
-                self._conn.execute(
-                    """INSERT INTO bills (bill_id, session_id, number, change_hash, status,
-                                          status_date, last_action_date, n_sponsors, n_actions,
-                                          n_texts, n_votes, payload_json, fetched_at)
-                       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                       ON CONFLICT(bill_id) DO UPDATE SET
-                         number=excluded.number, change_hash=excluded.change_hash,
-                         status=excluded.status, status_date=excluded.status_date,
-                         last_action_date=excluded.last_action_date,
-                         n_sponsors=excluded.n_sponsors, n_actions=excluded.n_actions,
-                         n_texts=excluded.n_texts, n_votes=excluded.n_votes,
-                         payload_json=excluded.payload_json, fetched_at=excluded.fetched_at""",
-                    (bill["bill_id"], session_id,
-                     bill.get("bill_number") or bill.get("number"),
-                     bill.get("change_hash"), bill.get("status"), bill.get("status_date"),
-                     last_action, len(bill.get("sponsors") or []), len(history),
-                     len(bill.get("texts") or []), len(bill.get("votes") or []),
-                     json.dumps(bill), _now()),
-                )
-                count += 1
+                try:
+                    bill = json.loads(zf.read(name))["bill"]
+                    history = bill.get("history") or []
+                    last_action = max((h["date"] for h in history if "date" in h), default=None)
+                    self._conn.execute(
+                        """INSERT INTO bills (bill_id, session_id, number, change_hash, status,
+                                              status_date, last_action_date, n_sponsors, n_actions,
+                                              n_texts, n_votes, payload_json, fetched_at)
+                           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                           ON CONFLICT(bill_id) DO UPDATE SET
+                             number=excluded.number, change_hash=excluded.change_hash,
+                             status=excluded.status, status_date=excluded.status_date,
+                             last_action_date=excluded.last_action_date,
+                             n_sponsors=excluded.n_sponsors, n_actions=excluded.n_actions,
+                             n_texts=excluded.n_texts, n_votes=excluded.n_votes,
+                             payload_json=excluded.payload_json, fetched_at=excluded.fetched_at""",
+                        (bill["bill_id"], session_id,
+                         bill.get("bill_number") or bill.get("number"),
+                         bill.get("change_hash"), bill.get("status"), bill.get("status_date"),
+                         last_action, len(bill.get("sponsors") or []), len(history),
+                         len(bill.get("texts") or []), len(bill.get("votes") or []),
+                         json.dumps(bill), _now()),
+                    )
+                    count += 1
+                except (KeyError, json.JSONDecodeError):
+                    continue
         self._conn.commit()
         return count
 

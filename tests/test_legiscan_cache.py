@@ -1,4 +1,3 @@
-import base64
 import io
 import json
 import zipfile
@@ -67,3 +66,12 @@ def test_dataset_hash_roundtrip(tmp_path):
         assert cache.dataset_hash(2172) is None
         cache.set_dataset_hash(2172, "ffff")
         assert cache.dataset_hash(2172) == "ffff"
+
+
+def test_ingest_skips_malformed_records(tmp_path):
+    good = dict(BILL)
+    bad = {"bill_number": "AB13", "session_id": 2172}  # no bill_id
+    with LegiScanCache(tmp_path / "cache.db") as cache:
+        n = cache.ingest_dataset_zip(2172, make_dataset_zip([good, bad]))
+        assert n == 1
+        assert [r["number"] for r in cache.bills_for_session(2172)] == ["AB12"]
