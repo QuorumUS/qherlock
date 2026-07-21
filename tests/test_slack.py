@@ -48,3 +48,17 @@ def test_truncation_at_cap_with_pointer():
     text, truncated = slack.truncate(body)
     assert truncated is True and len(text) <= slack.MAX_CHARS
     assert "casefile.db" in text
+
+
+def test_malformed_webhook_url_never_raises():
+    """httpx.InvalidURL from malformed URL parse is caught and never raised."""
+    result = slack.post("http://[::1", "digest", "x")
+    assert result["ok"] is False
+    assert "[::1" not in result["error"]
+
+
+def test_unknown_kind_is_error_payload():
+    """Unknown kind returns error payload naming valid kinds; no request attempted."""
+    result = slack.post("https://hooks.example/x", "meme", "x")
+    assert result["ok"] is False
+    assert "digest" in result["error"] and "alert" in result["error"]

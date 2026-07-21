@@ -35,7 +35,7 @@ def post(webhook_url: str, kind: str, text: str, http: httpx.Client | None = Non
             log.warning("slack_post_failed", status=resp.status_code)
             return {"ok": False, "error": f"slack post failed: HTTP {resp.status_code}"}
         return {"ok": True, "chars": len(body), "truncated": truncated}
-    except httpx.HTTPError as exc:
+    except Exception as exc:
         # never include the webhook URL — it is a secret
         log.warning("slack_post_failed", error=type(exc).__name__)
         return {"ok": False, "error": f"slack post failed: {type(exc).__name__}"}
