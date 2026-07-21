@@ -75,3 +75,27 @@ def test_ingest_skips_malformed_records(tmp_path):
         n = cache.ingest_dataset_zip(2172, make_dataset_zip([good, bad]))
         assert n == 1
         assert [r["number"] for r in cache.bills_for_session(2172)] == ["AB12"]
+
+
+def test_sync_meta_roundtrip(tmp_path):
+    with LegiScanCache(tmp_path / "cache.db") as cache:
+        assert cache.get_sync_meta("CA") is None
+        cache.touch_sync_meta("CA", session_list=True)
+        meta = cache.get_sync_meta("CA")
+        assert meta["session_list_fetched_at"] and meta["dataset_list_fetched_at"] is None
+        cache.touch_sync_meta("CA", dataset_list=True)
+        meta2 = cache.get_sync_meta("CA")
+        assert meta2["session_list_fetched_at"] == meta["session_list_fetched_at"]
+        assert meta2["dataset_list_fetched_at"]
+
+
+def test_upsert_bill_matches_zip_ingest_shape(tmp_path):
+    bill = {"bill_id": 7, "bill_number": "AB7", "change_hash": "h", "status": 1,
+            "status_date": "2026-01-01", "title": "T",
+            "history": [{"date": "2026-02-01"}, {"date": "2026-01-15"}],
+            "sponsors": [{}], "texts": [], "votes": []}
+    with LegiScanCache(tmp_path / "cache.db") as cache:
+        cache.upsert_bill(3, bill)
+        row = cache.bills_for_session(3)[0]
+        assert row["last_action_date"] == "2026-02-01" and row["n_sponsors"] == 1
+        assert cache.get_bill_payload(7)["title"] == "T"

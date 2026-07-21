@@ -22,6 +22,11 @@ CREATE TABLE IF NOT EXISTS bills (
 );
 CREATE INDEX IF NOT EXISTS idx_bills_session ON bills(session_id);
 CREATE TABLE IF NOT EXISTS quota (month TEXT PRIMARY KEY, calls_used INTEGER NOT NULL);
+CREATE TABLE IF NOT EXISTS sync_meta (
+    state TEXT PRIMARY KEY,
+    session_list_fetched_at TEXT,
+    dataset_list_fetched_at TEXT
+);
 """
 
 
@@ -85,6 +90,30 @@ class LegiScanCache:
         self._conn.commit()
 
     # -- bills ---------------------------------------------------------------
+    def _upsert_bill_row(self, session_id: int, bill: dict) -> None:
+        """Insert or update a bill row. Does not commit."""
+        history = bill.get("history") or []
+        last_action = max((h["date"] for h in history if "date" in h), default=None)
+        self._conn.execute(
+            """INSERT INTO bills (bill_id, session_id, number, change_hash, status,
+                                  status_date, last_action_date, n_sponsors, n_actions,
+                                  n_texts, n_votes, payload_json, fetched_at)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+               ON CONFLICT(bill_id) DO UPDATE SET
+                 number=excluded.number, change_hash=excluded.change_hash,
+                 status=excluded.status, status_date=excluded.status_date,
+                 last_action_date=excluded.last_action_date,
+                 n_sponsors=excluded.n_sponsors, n_actions=excluded.n_actions,
+                 n_texts=excluded.n_texts, n_votes=excluded.n_votes,
+                 payload_json=excluded.payload_json, fetched_at=excluded.fetched_at""",
+            (bill["bill_id"], session_id,
+             bill.get("bill_number") or bill.get("number"),
+             bill.get("change_hash"), bill.get("status"), bill.get("status_date"),
+             last_action, len(bill.get("sponsors") or []), len(history),
+             len(bill.get("texts") or []), len(bill.get("votes") or []),
+             json.dumps(bill), _now()),
+        )
+
     def ingest_dataset_zip(self, session_id: int, zip_bytes: bytes) -> int:
         count = 0
         with zipfile.ZipFile(io.BytesIO(zip_bytes)) as zf:
@@ -93,32 +122,17 @@ class LegiScanCache:
                     continue
                 try:
                     bill = json.loads(zf.read(name))["bill"]
-                    history = bill.get("history") or []
-                    last_action = max((h["date"] for h in history if "date" in h), default=None)
-                    self._conn.execute(
-                        """INSERT INTO bills (bill_id, session_id, number, change_hash, status,
-                                              status_date, last_action_date, n_sponsors, n_actions,
-                                              n_texts, n_votes, payload_json, fetched_at)
-                           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                           ON CONFLICT(bill_id) DO UPDATE SET
-                             number=excluded.number, change_hash=excluded.change_hash,
-                             status=excluded.status, status_date=excluded.status_date,
-                             last_action_date=excluded.last_action_date,
-                             n_sponsors=excluded.n_sponsors, n_actions=excluded.n_actions,
-                             n_texts=excluded.n_texts, n_votes=excluded.n_votes,
-                             payload_json=excluded.payload_json, fetched_at=excluded.fetched_at""",
-                        (bill["bill_id"], session_id,
-                         bill.get("bill_number") or bill.get("number"),
-                         bill.get("change_hash"), bill.get("status"), bill.get("status_date"),
-                         last_action, len(bill.get("sponsors") or []), len(history),
-                         len(bill.get("texts") or []), len(bill.get("votes") or []),
-                         json.dumps(bill), _now()),
-                    )
+                    self._upsert_bill_row(session_id, bill)
                     count += 1
                 except (KeyError, json.JSONDecodeError):
                     continue
         self._conn.commit()
         return count
+
+    def upsert_bill(self, session_id: int, bill: dict) -> None:
+        """Insert or update a single bill with immediate commit."""
+        self._upsert_bill_row(session_id, bill)
+        self._conn.commit()
 
     def upsert_bill_stub(self, session_id: int, bill_id: int, number: str, change_hash: str) -> None:
         self._conn.execute(
@@ -164,3 +178,24 @@ class LegiScanCache:
             "SELECT calls_used FROM quota WHERE month = ?", (month,)
         ).fetchone()
         return row["calls_used"] if row else 0
+
+    # -- sync metadata -------------------------------------------------------
+    def get_sync_meta(self, state: str) -> dict | None:
+        row = self._conn.execute(
+            "SELECT * FROM sync_meta WHERE state = ?", (state,)).fetchone()
+        return dict(row) if row else None
+
+    def touch_sync_meta(self, state: str, *, session_list: bool = False,
+                        dataset_list: bool = False) -> None:
+        self._conn.execute(
+            "INSERT INTO sync_meta (state) VALUES (?) ON CONFLICT(state) DO NOTHING",
+            (state,))
+        if session_list:
+            self._conn.execute(
+                "UPDATE sync_meta SET session_list_fetched_at = ? WHERE state = ?",
+                (_now(), state))
+        if dataset_list:
+            self._conn.execute(
+                "UPDATE sync_meta SET dataset_list_fetched_at = ? WHERE state = ?",
+                (_now(), state))
+        self._conn.commit()
