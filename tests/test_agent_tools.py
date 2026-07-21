@@ -3,10 +3,10 @@ import types
 
 import pytest
 
-from sherlock.agent.tools import TOOL_NAMES, build_toolkit
-from sherlock.casefiles.models import Anomaly
-from sherlock.casefiles.store import CaseFileStore
-from sherlock.config import Settings
+from qherlock.agent.tools import TOOL_NAMES, build_toolkit
+from qherlock.casefiles.models import Anomaly
+from qherlock.casefiles.store import CaseFileStore
+from qherlock.config import Settings
 
 
 @pytest.fixture
@@ -34,12 +34,12 @@ def settings_with_webhook(tmp_path, monkeypatch):
 
 def test_tool_names_exact_six():
     assert TOOL_NAMES == (
-        "mcp__sherlock__legiscan_sync",
-        "mcp__sherlock__diff",
-        "mcp__sherlock__list_anomalies",
-        "mcp__sherlock__get_anomaly",
-        "mcp__sherlock__investigate_bill",
-        "mcp__sherlock__post_slack",
+        "mcp__qherlock__legiscan_sync",
+        "mcp__qherlock__diff",
+        "mcp__qherlock__list_anomalies",
+        "mcp__qherlock__get_anomaly",
+        "mcp__qherlock__investigate_bill",
+        "mcp__qherlock__post_slack",
     )
 
 
@@ -75,7 +75,7 @@ async def test_sync_scope_all_routes_to_sync_many(monkeypatch, settings):
         seen["regions"] = list(regions)
         return {"ok": 1}
 
-    monkeypatch.setattr("sherlock.agent.tools.sync_many", fake_sync_many)
+    monkeypatch.setattr("qherlock.agent.tools.sync_many", fake_sync_many)
     _server, handlers = build_toolkit(settings, return_handlers=True)
     result = await handlers["legiscan_sync"]({"scope": "all"})
     payload = json.loads(result["content"][0]["text"])
@@ -90,7 +90,7 @@ async def test_sync_single_region_routes_to_sync_state(monkeypatch, settings):
         seen["state"] = state
         return {"state": state}
 
-    monkeypatch.setattr("sherlock.agent.tools.sync_state", fake_sync_state)
+    monkeypatch.setattr("qherlock.agent.tools.sync_state", fake_sync_state)
     _server, handlers = build_toolkit(settings, return_handlers=True)
     result = await handlers["legiscan_sync"]({"scope": "ca"})
     payload = json.loads(result["content"][0]["text"])
@@ -106,8 +106,8 @@ async def test_sync_invalid_scope_is_error_payload(settings):
 
 
 async def test_legiscan_sync_wires_quota_to_cache(settings, monkeypatch):
-    from sherlock.agent import tools as tools_mod
-    from sherlock.legiscan.cache import LegiScanCache
+    from qherlock.agent import tools as tools_mod
+    from qherlock.legiscan.cache import LegiScanCache
 
     def fake_sync(state, client, cache, **kwargs):
         client._on_call("getSessionList")  # simulate one API call through the hook
@@ -140,7 +140,7 @@ async def test_diff_connection_failure_does_not_leak_dsn(monkeypatch, settings):
     def boom(dsn):
         raise RuntimeError(f"connection failed: password=SECRET")
 
-    monkeypatch.setattr("sherlock.agent.tools.reader.connect", boom)
+    monkeypatch.setattr("qherlock.agent.tools.reader.connect", boom)
     _server, handlers = build_toolkit(settings, return_handlers=True)
     result = await handlers["diff"]({"scope": "CA"})
     payload = json.loads(result["content"][0]["text"])
@@ -150,15 +150,15 @@ async def test_diff_connection_failure_does_not_leak_dsn(monkeypatch, settings):
 
 async def test_diff_scope_all_routes_to_diff_many(monkeypatch, settings, tmp_path):
     settings.quorum_replica_dsn = "postgresql://fake"
-    monkeypatch.setattr("sherlock.agent.tools.reader.connect", lambda dsn: _FakeConn())
-    monkeypatch.setattr("sherlock.agent.tools.reader.check_schema", lambda conn: (True, None))
+    monkeypatch.setattr("qherlock.agent.tools.reader.connect", lambda dsn: _FakeConn())
+    monkeypatch.setattr("qherlock.agent.tools.reader.check_schema", lambda conn: (True, None))
     seen = {}
 
     def fake_diff_many(regions, *a, **k):
         seen["regions"] = list(regions)
         return {"ok": 1}
 
-    monkeypatch.setattr("sherlock.agent.tools.diff_many", fake_diff_many)
+    monkeypatch.setattr("qherlock.agent.tools.diff_many", fake_diff_many)
     _server, handlers = build_toolkit(settings, return_handlers=True)
     result = await handlers["diff"]({"scope": "all"})
     payload = json.loads(result["content"][0]["text"])
@@ -168,15 +168,15 @@ async def test_diff_scope_all_routes_to_diff_many(monkeypatch, settings, tmp_pat
 
 async def test_diff_single_region_routes_to_diff_region(monkeypatch, settings):
     settings.quorum_replica_dsn = "postgresql://fake"
-    monkeypatch.setattr("sherlock.agent.tools.reader.connect", lambda dsn: _FakeConn())
-    monkeypatch.setattr("sherlock.agent.tools.reader.check_schema", lambda conn: (True, None))
+    monkeypatch.setattr("qherlock.agent.tools.reader.connect", lambda dsn: _FakeConn())
+    monkeypatch.setattr("qherlock.agent.tools.reader.check_schema", lambda conn: (True, None))
     seen = {}
 
     def fake_diff_region(region, *a, **k):
         seen["region"] = region
         return {"region": region}
 
-    monkeypatch.setattr("sherlock.agent.tools.diff_region", fake_diff_region)
+    monkeypatch.setattr("qherlock.agent.tools.diff_region", fake_diff_region)
     _server, handlers = build_toolkit(settings, return_handlers=True)
     result = await handlers["diff"]({"scope": "ca"})
     payload = json.loads(result["content"][0]["text"])
@@ -205,7 +205,7 @@ async def test_investigate_bill_connection_failure_does_not_leak_dsn(monkeypatch
     def boom(dsn):
         raise RuntimeError("connection failed: password=SECRET")
 
-    monkeypatch.setattr("sherlock.agent.tools.reader.connect", boom)
+    monkeypatch.setattr("qherlock.agent.tools.reader.connect", boom)
     _server, handlers = build_toolkit(settings, return_handlers=True)
     result = await handlers["investigate_bill"]({"state": "CA", "session": "123", "number": "AB1"})
     payload = json.loads(result["content"][0]["text"])
@@ -215,8 +215,8 @@ async def test_investigate_bill_connection_failure_does_not_leak_dsn(monkeypatch
 
 async def test_investigate_bill_calls_investigate_with_quota_hook(monkeypatch, settings):
     settings.quorum_replica_dsn = "postgresql://fake"
-    monkeypatch.setattr("sherlock.agent.tools.reader.connect", lambda dsn: _FakeConn())
-    monkeypatch.setattr("sherlock.agent.tools.reader.check_schema", lambda conn: (True, None))
+    monkeypatch.setattr("qherlock.agent.tools.reader.connect", lambda dsn: _FakeConn())
+    monkeypatch.setattr("qherlock.agent.tools.reader.check_schema", lambda conn: (True, None))
     seen = {}
 
     def fake_investigate(state, session_id, number, client, cache, replica_conn, **kwargs):
@@ -224,13 +224,13 @@ async def test_investigate_bill_calls_investigate_with_quota_hook(monkeypatch, s
         seen.update(state=state, session_id=session_id, number=number)
         return {"state": state, "session_id": session_id}
 
-    monkeypatch.setattr("sherlock.agent.tools.investigate", fake_investigate)
+    monkeypatch.setattr("qherlock.agent.tools.investigate", fake_investigate)
     _server, handlers = build_toolkit(settings, return_handlers=True)
     result = await handlers["investigate_bill"]({"state": "ca", "session": "123", "number": "AB1"})
     payload = json.loads(result["content"][0]["text"])
     assert seen == {"state": "CA", "session_id": 123, "number": "AB1"}
     assert payload["session_id"] == 123
-    from sherlock.legiscan.cache import LegiScanCache
+    from qherlock.legiscan.cache import LegiScanCache
     with LegiScanCache(settings.data_dir / "cache.db") as cache:
         assert cache.calls_this_month() == 1
 
@@ -249,7 +249,7 @@ async def test_post_slack_bad_kind_and_missing_webhook(settings_no_webhook):
 async def test_post_slack_passes_webhook_from_settings(monkeypatch, settings_with_webhook):
     seen = {}
     monkeypatch.setattr(
-        "sherlock.agent.tools.slack",
+        "qherlock.agent.tools.slack",
         types.SimpleNamespace(post=lambda url, kind, text: seen.update(url=url) or {"ok": True}),
     )
     _server, handlers = build_toolkit(settings_with_webhook, return_handlers=True)

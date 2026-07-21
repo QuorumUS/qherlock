@@ -2,9 +2,9 @@ import sqlite3
 
 import pytest
 
-from sherlock.investigate import investigate
-from sherlock.legiscan.cache import LegiScanCache
-from sherlock.legiscan.client import LegiScanError
+from qherlock.investigate import investigate
+from qherlock.legiscan.cache import LegiScanCache
+from qherlock.legiscan.client import LegiScanError
 
 _REPLICA_SCHEMA = """
 CREATE TABLE app_legsession (id INTEGER PRIMARY KEY, region_abbrev TEXT, title TEXT,

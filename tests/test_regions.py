@@ -1,6 +1,6 @@
 import pytest
 
-from sherlock.regions import ALL_REGIONS, parse_scope
+from qherlock.regions import ALL_REGIONS, parse_scope
 
 
 def test_all_regions_inventory():

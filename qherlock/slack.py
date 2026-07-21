@@ -11,7 +11,7 @@ import structlog
 
 MAX_CHARS = 3500
 _POINTER = "\n…[truncated — full details in casefile.db / patrol transcript]"
-_HEADERS = {"digest": ":mag: *Sherlock digest*", "alert": ":rotating_light: *Sherlock alert*"}
+_HEADERS = {"digest": ":mag: *Qherlock digest*", "alert": ":rotating_light: *Qherlock alert*"}
 
 log = structlog.get_logger()
 

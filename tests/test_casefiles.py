@@ -1,5 +1,5 @@
-from sherlock.casefiles.models import Anomaly
-from sherlock.casefiles.store import CaseFileStore
+from qherlock.casefiles.models import Anomaly
+from qherlock.casefiles.store import CaseFileStore
 
 
 def make_anomaly(number="AB12", severity=""):

@@ -1,8 +1,8 @@
-from sherlock.diff.matchers import (
+from qherlock.diff.matchers import (
     is_deliberately_unimported, legiscan_number_norm, normalize_bill_number,
     match_sessions, quorum_number_norm,
 )
-from sherlock.quorum.reader import SessionRow
+from qherlock.quorum.reader import SessionRow
 
 
 def test_normalize_pure_rules():

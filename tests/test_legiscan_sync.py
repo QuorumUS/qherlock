@@ -3,9 +3,9 @@ from datetime import datetime, timedelta, timezone
 
 import pytest
 
-from sherlock.legiscan.cache import LegiScanCache
-from sherlock.legiscan.client import LegiScanError
-from sherlock.legiscan.sync import sync_many, sync_state
+from qherlock.legiscan.cache import LegiScanCache
+from qherlock.legiscan.client import LegiScanError
+from qherlock.legiscan.sync import sync_many, sync_state
 from tests.test_legiscan_cache import BILL, make_dataset_zip
 
 

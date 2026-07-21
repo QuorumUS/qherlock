@@ -1,8 +1,8 @@
 import base64
 from datetime import datetime, timedelta, timezone
 
-from sherlock.legiscan.cache import LegiScanCache
-from sherlock.legiscan.client import LegiScanClient, LegiScanError
+from qherlock.legiscan.cache import LegiScanCache
+from qherlock.legiscan.client import LegiScanClient, LegiScanError
 
 DEGRADE_THRESHOLD = 0.8
 SESSION_LIST_TTL_DAYS = 30   # spec §6: session inventory monthly

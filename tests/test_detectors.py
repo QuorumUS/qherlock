@@ -2,10 +2,10 @@ from datetime import date
 
 import pytest
 
-from sherlock.diff.detectors import (
+from qherlock.diff.detectors import (
     GENERAL_STATUS_RANK, LEGISCAN_MIN_RANK, compute_severity, detect_bill_anomalies,
 )
-from sherlock.quorum.reader import BillCounts, BillRow
+from qherlock.quorum.reader import BillCounts, BillRow
 
 TODAY = date(2026, 7, 21)
 

@@ -1,6 +1,6 @@
 import httpx
 
-from sherlock import slack
+from qherlock import slack
 
 
 def _client(handler):
@@ -17,7 +17,7 @@ def test_post_success_includes_kind_header():
     result = slack.post("https://hooks.example/x", "digest", "hello",
                         http=_client(handler))
     assert result["ok"] is True and result["truncated"] is False
-    assert "Sherlock digest" in seen["json"] and "hello" in seen["json"]
+    assert "Qherlock digest" in seen["json"] and "hello" in seen["json"]
 
 
 def test_no_webhook_configured():

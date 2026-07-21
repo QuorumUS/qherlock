@@ -3,10 +3,10 @@ from datetime import date
 
 import pytest
 
-from sherlock.casefiles.store import CaseFileStore
-from sherlock.diff.service import diff_many, diff_region, diff_state
-from sherlock.legiscan.cache import LegiScanCache
-from sherlock.quorum import reader
+from qherlock.casefiles.store import CaseFileStore
+from qherlock.diff.service import diff_many, diff_region, diff_state
+from qherlock.legiscan.cache import LegiScanCache
+from qherlock.quorum import reader
 from tests.test_legiscan_cache import BILL, make_dataset_zip
 
 _REPLICA_SCHEMA = """

@@ -11,10 +11,10 @@ class Settings(BaseSettings):
     anthropic_api_key: str = ""
     quorum_replica_dsn: str = ""
     slack_webhook_url: str = ""
-    sherlock_freshness_sla_hours: int = 72   # stale-detector SLA grace (spec §1)
+    qherlock_freshness_sla_hours: int = 72   # stale-detector SLA grace (spec §1)
     legiscan_monthly_budget: int = 30000     # free-tier cap; sync degrades at 80%
-    sherlock_model: str = "claude-sonnet-5"
-    sherlock_max_turns: int = 100
+    qherlock_model: str = "claude-sonnet-5"
+    qherlock_max_turns: int = 100
     data_dir: Path = Path("data")
     runs_dir: Path = Path("runs")
 

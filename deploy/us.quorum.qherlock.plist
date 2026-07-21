@@ -4,10 +4,10 @@
 <plist version="1.0">
 <dict>
     <key>Label</key>
-    <string>us.quorum.sherlock</string>
+    <string>us.quorum.qherlock</string>
 
     <!-- EDIT: replace __REPO__ with the absolute repo path. WorkingDirectory is
-         load-bearing: sherlock reads .env, data/, and runs/ relative to it. -->
+         load-bearing: qherlock reads .env, data/, and runs/ relative to it. -->
     <key>WorkingDirectory</key>
     <string>__REPO__</string>
 
@@ -17,7 +17,7 @@
     <array>
         <string>/bin/zsh</string>
         <string>-lc</string>
-        <string>exec python3 -m uv run sherlock patrol --scope all</string>
+        <string>exec python3 -m uv run qherlock patrol --scope all</string>
     </array>
 
     <key>StartCalendarInterval</key>
@@ -30,10 +30,10 @@
     <false/>
 
     <!-- EDIT: replace __HOME__ (launchd does not expand ~).
-         mkdir -p ~/Library/Logs/sherlock first. -->
+         mkdir -p ~/Library/Logs/qherlock first. -->
     <key>StandardOutPath</key>
-    <string>__HOME__/Library/Logs/sherlock/patrol.log</string>
+    <string>__HOME__/Library/Logs/qherlock/patrol.log</string>
     <key>StandardErrorPath</key>
-    <string>__HOME__/Library/Logs/sherlock/patrol.err.log</string>
+    <string>__HOME__/Library/Logs/qherlock/patrol.err.log</string>
 </dict>
 </plist>

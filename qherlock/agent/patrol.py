@@ -2,14 +2,14 @@ import json
 
 from claude_agent_sdk import ClaudeAgentOptions, ResultMessage, query
 
-from sherlock import slack
-from sherlock.agent.tools import TOOL_NAMES, build_toolkit
-from sherlock.casefiles.store import CaseFileStore
-from sherlock.config import Settings
-from sherlock.legiscan.cache import LegiScanCache
-from sherlock.quorum import reader
+from qherlock import slack
+from qherlock.agent.tools import TOOL_NAMES, build_toolkit
+from qherlock.casefiles.store import CaseFileStore
+from qherlock.config import Settings
+from qherlock.legiscan.cache import LegiScanCache
+from qherlock.quorum import reader
 
-DOCTRINE = """You are Sherlock, a data-integrity detective auditing Quorum's legislative \
+DOCTRINE = """You are Qherlock, a data-integrity detective auditing Quorum's legislative \
 database against LegiScan across all 50 US states plus Congress (region code "US").
 
 Patrol procedure (M1 — read-only shadow mode):
@@ -55,10 +55,10 @@ class PatrolFatalError(RuntimeError):
 
 def build_options(settings: Settings, server) -> ClaudeAgentOptions:
     kwargs: dict = dict(
-        model=settings.sherlock_model,
-        max_turns=settings.sherlock_max_turns,
+        model=settings.qherlock_model,
+        max_turns=settings.qherlock_max_turns,
         system_prompt=DOCTRINE,
-        mcp_servers={"sherlock": server},
+        mcp_servers={"qherlock": server},
         tools=[],  # disable every built-in tool (Bash, Write, Edit, ...) — only our MCP tools remain
         allowed_tools=list(TOOL_NAMES),  # auto-approve our 6 read-only tools; nothing else is offered
     )
