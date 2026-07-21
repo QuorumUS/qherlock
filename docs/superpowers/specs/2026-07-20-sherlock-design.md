@@ -8,7 +8,7 @@ Sherlock is a standalone agentic auditor that continuously compares LegiScan aga
 production data for **US federal + all 50 states** (current sessions, including carryover),
 detects four gap types, diagnoses each anomaly, and closes the loop — fixing data through
 Quorum's own pipelines where possible, alerting humans where not. All output goes to the
-`#sherlock-bot` Slack channel until trust is established.
+`#quentin-bot` Slack channel until trust is established.
 
 | Gap type | Definition |
 |---|---|
@@ -45,7 +45,7 @@ not import):
 | Read path | Read-only SQL on prod replica via Teleport | Sherlock never holds DB write credentials |
 | Fix path | Fallback chain: re-ingestion → ORM template script → rollback + alert | Every action logged |
 | Fix channel | Teleport/SSH exec running `manage.py` on a prod node | |
-| Slack | Everything → `#sherlock-bot` (exists) | Escalation to team channels deferred |
+| Slack | Everything → `#quentin-bot` (exists) | Escalation to team channels deferred. Channel changed from `#sherlock-bot` 2026-07-21 (Victor) — report into Quentin's channel per the actacollecta graduation direction |
 | Home | Standalone repo `~/Projects/sherlock` | In-repo module is dead; this is the restart |
 | LegiScan tier | Free (30k queries/month) | Bulk `getDataset` strategy mandatory |
 | First runtime | cron/launchd on Victor's laptop | Containerize later |
@@ -68,7 +68,7 @@ individually-tested tools — an LLM cannot and should not stream a 150k-bill co
             legiscan_  diff_    investigate  trigger_   run_fix_      post_
             sync     state/fed  _bill        rescrape   template      slack
                  │       │         │          └────┬─────┘             │
-              LegiScan  SQLite   both-side      Teleport exec       #sherlock-bot
+              LegiScan  SQLite   both-side      Teleport exec       #quentin-bot
               API+cache diff     deep dive      manage.py           webhook
                           ▼
               CASE FILES (SQLite) ◀── every anomaly, action, snapshot, transcript
@@ -93,7 +93,7 @@ in the case DB, retrievable by ID. No tool output may exceed ~2k tokens.
 | `trigger_rescrape(region, session, bill_numbers?)` | Fix leg 1 | Teleport exec of the appropriate scoped `manage.py scrape` invocation (actacollecta replay path for those states). Refuses if kill switch or caps. Returns command, exit code, log tail. |
 | `run_fix_template(template_id, params, anomaly_id)` | Fix leg 2 | Allowlisted template IDs only. Renders Jinja→Python, executes via `manage.py shell` (stdin over `tsh ssh`), wrapped in `transaction.atomic()`; snapshots before-values to case DB; verifies in-script; JSON result markers parsed. Honors dry-run (`SHERLOCK_LIVE=0` ⇒ always dry-run), kill switch, per-cycle/per-state caps. |
 | `verify_fix(anomaly_id)` | Post-action check | Re-reads replica + LegiScan; sets anomaly `verified`/`regressed`. Failure ⇒ compensating rollback from snapshots + alert. |
-| `post_slack(kind, payload)` | Digest or alert to `#sherlock-bot` | Via webhook. Failures are logged, never fatal. Message ≤ ~3500 chars; overflow summarized with case-file pointers. |
+| `post_slack(kind, payload)` | Digest or alert to `#quentin-bot` | Via webhook. Failures are logged, never fatal. Message ≤ ~3500 chars; overflow summarized with case-file pointers. |
 
 ## 6. LegiScan collector (inside `legiscan_sync`)
 
@@ -201,7 +201,7 @@ classification, status, first/last_seen), `patrols` (scope, stats, transcript pa
 `actions` (anomaly_id, kind, template_id, params, dry_run, result), `snapshots` (action_id,
 table, pk, before/after JSON).
 
-Every patrol ends with a digest to `#sherlock-bot`: scope + duration; counts by gap type and
+Every patrol ends with a digest to `#quentin-bot`: scope + duration; counts by gap type and
 state (new vs recurring); notable cases with Sherlock's narrative diagnosis; actions taken with
 before/after; failures/rollbacks; API quota + token spend. The daily digest doubles as the
 liveness heartbeat — no digest by the expected hour means the cron is dead.
@@ -268,7 +268,7 @@ executor tested through a fake `tsh` shim + dry-run — tests never touch prod. 
 - **M0 — Skeleton agent:** SDK loop + read-only tools (`legiscan_sync`, `diff_state`,
   `get_anomaly`) for one state (CA), console report. Replica reader schema resolved.
 - **M1 — Shadow patrols:** all 50 states + federal, all four detectors, `investigate_bill`,
-  `post_slack` → daily digests in `#sherlock-bot` via launchd.
+  `post_slack` → daily digests in `#quentin-bot` via launchd.
 - **M2 — Doctrine:** FP taxonomy + severity rubric tuned against an eval set; transcripts
   persisted; digest quality pass.
 - **M3 — Hands, dry-run:** `trigger_rescrape` + `run_fix_template` + `verify_fix` in permanent
@@ -296,7 +296,7 @@ Each milestone gets its own implementation plan; M0 is next.
 | LegiScan free-tier quota | Dataset-first budget, tracked in cache DB, degrade-at-80% rule |
 | LegiScan data provenance/licensing for writes | Per-template provenance attribute; `legiscan_copy` disabled by default |
 | Replica schema drift | Single SQL module + startup smoke query; drift alerts instead of crashing |
-| Prod writes misfire | Dry-run default, caps, kill switch, transactions + snapshots + verify + rollback, `#sherlock-bot` audit trail |
+| Prod writes misfire | Dry-run default, caps, kill switch, transactions + snapshots + verify + rollback, `#quentin-bot` audit trail |
 | Laptop runtime reliability | Digest-as-heartbeat; missed digest = dead cron; containerize at M5 if needed |
 
 ## 17. Out of scope (v1)
