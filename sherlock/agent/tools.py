@@ -2,19 +2,24 @@ import json
 
 from claude_agent_sdk import create_sdk_mcp_server, tool
 
+from sherlock import slack
 from sherlock.casefiles.store import CaseFileStore
 from sherlock.config import Settings
-from sherlock.diff.service import diff_state as run_diff_state
+from sherlock.diff.service import diff_many, diff_region
+from sherlock.investigate import investigate
 from sherlock.legiscan.cache import LegiScanCache
 from sherlock.legiscan.client import LegiScanClient
-from sherlock.legiscan.sync import sync_state
+from sherlock.legiscan.sync import sync_many, sync_state
 from sherlock.quorum import reader
+from sherlock.regions import parse_scope
 
 TOOL_NAMES = (
     "mcp__sherlock__legiscan_sync",
-    "mcp__sherlock__diff_state",
+    "mcp__sherlock__diff",
     "mcp__sherlock__list_anomalies",
     "mcp__sherlock__get_anomaly",
+    "mcp__sherlock__investigate_bill",
+    "mcp__sherlock__post_slack",
 )
 
 _EVIDENCE_CAP = 1500
@@ -37,21 +42,36 @@ def build_toolkit(settings: Settings, return_handlers: bool = False):
     cache_path = settings.data_dir / "cache.db"
     casefile_path = settings.data_dir / "casefile.db"
 
-    @tool("legiscan_sync", "Refresh the local LegiScan cache for a state (datasets + "
-          "masterlist change-hashes). Budget-aware; read-only.", {"state": str})
+    @tool("legiscan_sync", "Refresh the local LegiScan cache. scope: 'all' (50 states + "
+          "US federal), one region ('CA'), or a comma list ('CA,TX'). Budget-aware; "
+          "read-only.", {"scope": str})
     async def legiscan_sync_handler(args: dict) -> dict:
+        try:
+            regions = parse_scope(args["scope"])
+        except ValueError as exc:
+            return _text({"error": str(exc)})
         with LegiScanCache(cache_path) as cache:
             client = LegiScanClient(settings.legiscan_api_key, on_call=lambda op: cache.add_call(op))
             try:
-                stats = sync_state(args["state"].upper(), client, cache)
+                if len(regions) == 1:
+                    result = sync_state(regions[0], client, cache,
+                                         budget_limit=settings.legiscan_monthly_budget)
+                else:
+                    result = sync_many(regions, client, cache,
+                                        budget_limit=settings.legiscan_monthly_budget)
             finally:
                 client.close()
-        return _text(stats)
+        return _text(result)
 
-    @tool("diff_state", "Diff LegiScan cache vs Quorum replica for a state's current "
-          "sessions. Records missing_bill anomalies; returns summary + top cases.",
-          {"state": str})
-    async def diff_state_handler(args: dict) -> dict:
+    @tool("diff", "Run all four detectors (missing_bill, incomplete_fields, stale, "
+          "wrong_data) for the scope's current sessions vs the Quorum replica. Records "
+          "anomalies; returns a bounded rollup with counts by gap type and region plus "
+          "top cases by severity.", {"scope": str})
+    async def diff_handler(args: dict) -> dict:
+        try:
+            regions = parse_scope(args["scope"])
+        except ValueError as exc:
+            return _text({"error": str(exc)})
         if not settings.quorum_replica_dsn:
             return _text({"error": "no QUORUM_REPLICA_DSN configured — start a Teleport "
                                    "tunnel (tsh proxy db) and set it in .env"})
@@ -64,7 +84,12 @@ def build_toolkit(settings: Settings, return_handlers: bool = False):
                 ok, err = reader.check_schema(conn)
                 if not ok:
                     return _text({"error": f"replica schema drift: {err}"})
-                summary = run_diff_state(args["state"].upper(), cache, casefile, conn)
+                if len(regions) == 1:
+                    summary = diff_region(regions[0], cache, casefile, conn,
+                                          sla_hours=settings.sherlock_freshness_sla_hours)
+                else:
+                    summary = diff_many(regions, cache, casefile, conn,
+                                        sla_hours=settings.sherlock_freshness_sla_hours)
             finally:
                 conn.close()
         return _text(summary)
@@ -93,13 +118,54 @@ def build_toolkit(settings: Settings, return_handlers: bool = False):
             return _text({"error": f"anomaly {args['anomaly_id']} not found"})
         return _text(_bounded(row))
 
-    sdk_tools = [legiscan_sync_handler, diff_state_handler,
-                 list_anomalies_handler, get_anomaly_handler]
+    @tool("investigate_bill", "Targeted single-bill deep-dive: live LegiScan getBill "
+          "(budget-permitting) plus a Quorum replica lookup, side by side.",
+          {"state": str, "session": str, "number": str})
+    async def investigate_bill_handler(args: dict) -> dict:
+        state = args["state"].upper()
+        try:
+            session_id = int(args["session"])
+        except ValueError:
+            return _text({"error": "session must be the LegiScan session_id (shown as "
+                                   "session_key on anomalies)"})
+        if not settings.quorum_replica_dsn:
+            return _text({"error": "no QUORUM_REPLICA_DSN configured — start a Teleport "
+                                   "tunnel (tsh proxy db) and set it in .env"})
+        with LegiScanCache(cache_path) as cache:
+            try:
+                conn = reader.connect(settings.quorum_replica_dsn)
+            except Exception as exc:
+                return _text({"error": f"replica connection failed: {exc}"})
+            try:
+                ok, err = reader.check_schema(conn)
+                if not ok:
+                    return _text({"error": f"replica schema drift: {err}"})
+                client = LegiScanClient(settings.legiscan_api_key,
+                                        on_call=lambda op: cache.add_call(op))
+                try:
+                    result = investigate(state, session_id, args["number"], client, cache, conn,
+                                         budget_limit=settings.legiscan_monthly_budget)
+                finally:
+                    client.close()
+            finally:
+                conn.close()
+        return _text(_bounded(result))
+
+    @tool("post_slack", "Post a digest or alert to the configured Slack webhook. "
+          "kind: 'digest' or 'alert'.", {"kind": str, "text": str})
+    async def post_slack_handler(args: dict) -> dict:
+        result = slack.post(settings.slack_webhook_url, args["kind"], args["text"])
+        return _text(result)
+
+    sdk_tools = [legiscan_sync_handler, diff_handler, list_anomalies_handler,
+                 get_anomaly_handler, investigate_bill_handler, post_slack_handler]
     server = create_sdk_mcp_server(name="sherlock", version="0.1.0", tools=sdk_tools)
     if return_handlers:
         handlers = {"legiscan_sync": legiscan_sync_handler.handler,
-                    "diff_state": diff_state_handler.handler,
+                    "diff": diff_handler.handler,
                     "list_anomalies": list_anomalies_handler.handler,
-                    "get_anomaly": get_anomaly_handler.handler}
+                    "get_anomaly": get_anomaly_handler.handler,
+                    "investigate_bill": investigate_bill_handler.handler,
+                    "post_slack": post_slack_handler.handler}
         return server, handlers
     return server, TOOL_NAMES
