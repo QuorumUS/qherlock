@@ -21,3 +21,23 @@ Sherlock earns autonomy in stages — same code, one switch:
 
 1. **Shadow mode** *(start here)* — detect, diagnose, and report to `#quentin-bot`. No writes, ever.
 2. **Auto-fix** *(once trusted)* — fixes enabled behind a flag, dry-run by default, hard-capped per cycle, kill switch always armed.
+
+## Daily patrol (launchd)
+
+    mkdir -p ~/Library/Logs/sherlock
+    cp deploy/us.quorum.sherlock.plist ~/Library/LaunchAgents/
+    $EDITOR ~/Library/LaunchAgents/us.quorum.sherlock.plist   # replace __REPO__ and __HOME__
+    plutil -lint ~/Library/LaunchAgents/us.quorum.sherlock.plist
+    launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/us.quorum.sherlock.plist
+    launchctl kickstart -k gui/$(id -u)/us.quorum.sherlock    # smoke-run now
+    # unload after edits: launchctl bootout gui/$(id -u)/us.quorum.sherlock
+
+Prereqs: `.env` must have `SLACK_WEBHOOK_URL` and `QUORUM_REPLICA_DSN`, and the
+`tsh proxy db` tunnel must be up (a dead tunnel produces a Slack alert + exit 2 —
+that is the intended failure mode; the daily digest doubles as the liveness
+heartbeat). Before the first scheduled run, pre-warm the cache once:
+
+    python3 -m uv run sherlock sync --scope all
+
+The first full sync ingests ~85 dataset ZIPs and takes a while; subsequent daily
+runs are ~85 cheap masterlist calls.

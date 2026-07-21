@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
+  "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>us.quorum.sherlock</string>
+
+    <!-- EDIT: replace __REPO__ with the absolute repo path. WorkingDirectory is
+         load-bearing: sherlock reads .env, data/, and runs/ relative to it. -->
+    <key>WorkingDirectory</key>
+    <string>__REPO__</string>
+
+    <!-- zsh -lc loads the login profile so python3/uv/tsh are on PATH.
+         uv is module-installed on this host: python3 -m uv. -->
+    <key>ProgramArguments</key>
+    <array>
+        <string>/bin/zsh</string>
+        <string>-lc</string>
+        <string>exec python3 -m uv run sherlock patrol --scope all</string>
+    </array>
+
+    <key>StartCalendarInterval</key>
+    <dict>
+        <key>Hour</key><integer>7</integer>
+        <key>Minute</key><integer>0</integer>
+    </dict>
+
+    <key>RunAtLoad</key>
+    <false/>
+
+    <!-- EDIT: replace __HOME__ (launchd does not expand ~).
+         mkdir -p ~/Library/Logs/sherlock first. -->
+    <key>StandardOutPath</key>
+    <string>__HOME__/Library/Logs/sherlock/patrol.log</string>
+    <key>StandardErrorPath</key>
+    <string>__HOME__/Library/Logs/sherlock/patrol.err.log</string>
+</dict>
+</plist>
