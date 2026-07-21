@@ -4,14 +4,15 @@ import os
 
 import typer
 
-from sherlock.agent.patrol import run_patrol
+from sherlock.agent.patrol import PatrolFatalError, run_patrol
 from sherlock.casefiles.store import CaseFileStore
 from sherlock.config import Settings
-from sherlock.diff.service import diff_state as run_diff
+from sherlock.diff.service import diff_many, diff_region
 from sherlock.legiscan.cache import LegiScanCache
 from sherlock.legiscan.client import LegiScanClient
-from sherlock.legiscan.sync import sync_state
+from sherlock.legiscan.sync import sync_many, sync_state
 from sherlock.quorum import reader
+from sherlock.regions import parse_scope
 
 app = typer.Typer(help="Sherlock — LegiScan vs Quorum data-integrity patroller")
 
@@ -38,25 +39,42 @@ class _NoNetworkClient:
         pass
 
 
+def _resolve_scope(scope: str, state: str) -> list[str]:
+    if state:
+        typer.echo("note: --state is deprecated; use --scope")
+        scope = state
+    try:
+        return parse_scope(scope)
+    except ValueError as exc:
+        raise typer.BadParameter(str(exc))
+
+
 @app.command()
-def sync(state: str = typer.Option("CA", "--state")) -> None:
-    """Refresh the LegiScan cache for STATE."""
+def sync(scope: str = typer.Option("all", "--scope", help='"all", "CA", or "CA,TX"'),
+          state: str = typer.Option("", "--state", help="deprecated alias for --scope")) -> None:
+    """Refresh the LegiScan cache for SCOPE."""
+    regions = _resolve_scope(scope, state)
     s = _settings()
     with LegiScanCache(s.data_dir / "cache.db") as cache:
-        if os.environ.get("SHERLOCK_TEST_MODE") == "1":
-            client = _NoNetworkClient()
-        else:
-            client = LegiScanClient(s.legiscan_api_key, on_call=lambda op: cache.add_call(op))
+        client = (_NoNetworkClient() if os.environ.get("SHERLOCK_TEST_MODE") == "1"
+                  else LegiScanClient(s.legiscan_api_key, on_call=lambda op: cache.add_call(op)))
         try:
-            stats = sync_state(state.upper(), client, cache)
+            if len(regions) == 1:
+                stats = sync_state(regions[0], client, cache,
+                                    budget_limit=s.legiscan_monthly_budget)
+            else:
+                stats = sync_many(regions, client, cache,
+                                   budget_limit=s.legiscan_monthly_budget)
         finally:
             client.close()
     typer.echo(json.dumps(stats, indent=2))
 
 
 @app.command()
-def diff(state: str = typer.Option("CA", "--state")) -> None:
-    """Diff LegiScan cache vs Quorum replica for STATE."""
+def diff(scope: str = typer.Option("all", "--scope", help='"all", "CA", or "CA,TX"'),
+         state: str = typer.Option("", "--state", help="deprecated alias for --scope")) -> None:
+    """Diff LegiScan cache vs Quorum replica for SCOPE."""
+    regions = _resolve_scope(scope, state)
     s = _settings()
     if not s.quorum_replica_dsn:
         typer.echo("error: QUORUM_REPLICA_DSN not set — run `tsh proxy db` and set it in .env")
@@ -73,18 +91,31 @@ def diff(state: str = typer.Option("CA", "--state")) -> None:
             if not ok:
                 typer.echo(f"error: {err}")
                 raise typer.Exit(code=2)
-            summary = run_diff(state.upper(), cache, casefile, conn)
+            if len(regions) == 1:
+                summary = diff_region(regions[0], cache, casefile, conn,
+                                       sla_hours=s.sherlock_freshness_sla_hours)
+            else:
+                summary = diff_many(regions, cache, casefile, conn,
+                                     sla_hours=s.sherlock_freshness_sla_hours)
         finally:
             conn.close()
     typer.echo(json.dumps(summary, indent=2))
 
 
 @app.command()
-def patrol(state: str = typer.Option("CA", "--state"),
+def patrol(scope: str = typer.Option("all", "--scope"),
+           state: str = typer.Option("", "--state", help="deprecated alias for --scope"),
            objective: str = typer.Option("", "--objective")) -> None:
-    """Run a full agentic patrol for STATE (calls the Anthropic API)."""
+    """Run a full agentic patrol over SCOPE (calls the Anthropic API)."""
+    _resolve_scope(scope, state)  # early validation
+    if state:
+        scope = state.upper()
     s = _settings()
-    report = asyncio.run(run_patrol(s, state.upper(), objective))
+    try:
+        report = asyncio.run(run_patrol(s, scope, objective))
+    except PatrolFatalError as exc:
+        typer.echo(f"fatal: {exc}")   # alert already posted inside run_patrol
+        raise typer.Exit(code=2)
     typer.echo(report)
 
 
