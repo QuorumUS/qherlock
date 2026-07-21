@@ -4,7 +4,8 @@ replica lookup. Behind the investigate_bill tool (Task 12).
 Every early exit returns a dict with "error" — never raises.
 """
 
-from sherlock.diff.matchers import legiscan_number_norm, match_sessions, quorum_number_norm
+from sherlock.diff.matchers import (legiscan_number_norm, match_sessions, normalize_bill_number,
+                                    quorum_number_norm)
 from sherlock.legiscan.cache import LegiScanCache
 from sherlock.legiscan.client import LegiScanError
 from sherlock.quorum import reader
@@ -53,15 +54,24 @@ def _legiscan_view(bill_id: int, bill_row: dict, payload: dict) -> dict:
 
 def investigate(state: str, session_id: int, number: str, client, cache: LegiScanCache,
                 replica_conn, budget_limit: int = 30000) -> dict:
-    number_norm = legiscan_number_norm(state, number)
+    # The US prefix map is non-idempotent (HR->HRES), so a caller-supplied
+    # `number` may be either an already-normalized LegiScan number (the usual
+    # case — callers pass an anomaly's bill_number_norm) or a raw LegiScan
+    # number that still needs translation. Accept both, preferring the
+    # un-translated interpretation to avoid a confidently wrong match
+    # (federal "HR24" must resolve to H.R. 24, not House Resolution 24).
+    raw_norm = normalize_bill_number(number)
+    translated_norm = legiscan_number_norm(state, number)
 
-    bill_row = None
-    for row in cache.bills_for_session(session_id):
-        if legiscan_number_norm(state, row["number"]) == number_norm:
-            bill_row = row
-            break
-    if bill_row is None:
+    rows_with_norms = [(row, legiscan_number_norm(state, row["number"]))
+                       for row in cache.bills_for_session(session_id)]
+    match = next(((row, norm) for row, norm in rows_with_norms if norm == raw_norm), None)
+    if match is None:
+        match = next(((row, norm) for row, norm in rows_with_norms if norm == translated_norm),
+                     None)
+    if match is None:
         return {"error": f"bill not in cache — run legiscan_sync for {state} first"}
+    bill_row, number_norm = match
 
     bill_id = bill_row["bill_id"]
     notes: list[str] = []
@@ -84,8 +94,9 @@ def investigate(state: str, session_id: int, number: str, client, cache: LegiSca
 
     quorum_out = None
     quorum_session_id = None
-    matched, _warnings = match_sessions(cache.get_sessions(state),
+    matched, session_warnings = match_sessions(cache.get_sessions(state),
                                         reader.get_current_sessions(replica_conn, state))
+    notes.extend(session_warnings)
     pair = next((qs for ls, qs in matched if ls["session_id"] == session_id), None)
     if pair is None:
         notes.append(f"no matched Quorum session for LegiScan session {session_id}")

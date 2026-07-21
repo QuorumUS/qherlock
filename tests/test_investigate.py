@@ -140,6 +140,30 @@ def test_live_error_falls_back_to_cache(cache, replica):
     assert any("getBill" in n or "boom" in n for n in result["notes"])
 
 
+def test_double_prefix_translation_prefers_untranslated_match(tmp_path):
+    """US prefix map is non-idempotent (HR->HRES). A session containing both
+    HB24 (H.R. 24, norm HR24) and HR24 (House Resolution 24, norm HRES24) must
+    resolve number="HR24" to H.R. 24 — not re-translate it into HRES24 and
+    match House Resolution 24 instead. The raw LegiScan form ("HB24") must
+    also land on the same H.R. 24 row."""
+    with LegiScanCache(tmp_path / "cache.db") as cache:
+        cache.upsert_session("US", {"session_id": 9, "year_start": 2025, "year_end": 2026,
+                                    "special": 0, "session_name": "119th Congress"})
+        cache.upsert_bill_stub(9, 100, "HB24", "hash-hr")     # H.R. 24
+        cache.upsert_bill_stub(9, 200, "HR24", "hash-hres")   # House Resolution 24
+        replica = sqlite3.connect(":memory:")
+        replica.executescript(_REPLICA_SCHEMA)
+        fake_client = FakeClient(payload=_payload())
+
+        result_normalized_input = investigate("US", 9, "HR24", fake_client, cache, replica)
+        assert result_normalized_input["number_norm"] == "HR24"
+        assert result_normalized_input["legiscan"]["bill_id"] == 100
+
+        result_raw_input = investigate("US", 9, "HB24", fake_client, cache, replica)
+        assert result_raw_input["number_norm"] == "HR24"
+        assert result_raw_input["legiscan"]["bill_id"] == 100
+
+
 def test_stub_only_cache_with_quota_exhausted_never_raises(cache, replica):
     cache.upsert_bill_stub(5, 1, "AB1", "hash1")
     for _ in range(10):
