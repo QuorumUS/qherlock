@@ -170,6 +170,10 @@ Slack alert (schema drift is an alert, not a crash loop).
 
 ## 10. Fix executor (inside `trigger_rescrape` / `run_fix_template` / `verify_fix`)
 
+> **NOTE (2026-07-20):** with the actacollecta graduation decided (§15 M5), this Teleport-exec
+> chain is an interim design — at the destination, fix legs are replaced by re-scrape requests
+> emitted to Quentin, and this section shrinks to the verify/rollback semantics.
+
 Chain per anomaly: **(1)** scoped re-scrape → wait → `verify_fix`; **(2)** still broken →
 fix template via `manage.py shell` in a transaction (snapshot → apply → in-script verify →
 commit) → `verify_fix`; **(3)** verification failure → compensating rollback from snapshots +
@@ -271,8 +275,15 @@ executor tested through a fake `tsh` shim + dry-run — tests never touch prod. 
   dry-run; Sherlock narrates intended actions.
 - **M4 — Hands, live:** `SHERLOCK_LIVE=1` with caps armed; re-ingestion leg first, then T1/T2
   templates + rollback drill.
-- **M5 — Pack hunting (optional):** parallel per-state sub-agents; revisit `T3`/provenance;
-  consider upstreaming learnings to quorum-site.
+- **M5 — Graduation (decided 2026-07-20, Victor + Nei):** merge Sherlock into
+  **QuorumUS/actacollecta as a data check**. Sherlock keeps the patrol (detection + triage) and
+  **outputs findings to Quentin** (actacollecta's scraping AI agent), which owns re-scrape
+  execution; actacollecta takes ownership of the LegiScan dependency (proper subscription, no
+  hardcoded-key fallback). Consequence for sequencing: **M3/M4 (Teleport-exec fix legs) are
+  deprioritized** — at the destination they are replaced by re-scrape requests emitted to
+  Quentin. Pre-merge bar: M1 breadth (50 states + federal, all four detectors) and M2 quiet
+  (false-positive suppression, starting with the CA X1 special-session family) — Sherlock must
+  arrive in actacollecta already quiet.
 
 Each milestone gets its own implementation plan; M0 is next.
 
