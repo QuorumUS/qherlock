@@ -26,9 +26,16 @@ def replica():
         """
         CREATE TABLE app_legsession (id INTEGER PRIMARY KEY, region_abbrev TEXT, title TEXT,
             session_name TEXT, start_year INTEGER, current BOOLEAN, regular_session BOOLEAN);
-        CREATE TABLE bill_bill (id INTEGER PRIMARY KEY, label TEXT, number TEXT, session_id INTEGER);
+        CREATE TABLE bill_bill (id INTEGER PRIMARY KEY, session_id INTEGER, label TEXT,
+            number TEXT, bill_type INTEGER, current_general_status INTEGER,
+            current_status_date TEXT, most_recent_action_date TEXT, introduced_date TEXT,
+            missing_data BOOLEAN DEFAULT 0, last_quorum_update TEXT, source TEXT);
+        CREATE TABLE bill_billaction (id INTEGER PRIMARY KEY, bill_id INTEGER, date TEXT, action_type INTEGER);
+        CREATE TABLE bill_billtext (id INTEGER PRIMARY KEY, bill_id INTEGER);
+        CREATE TABLE bill_sponsor (id INTEGER PRIMARY KEY, bill_id INTEGER, sponsor_type INTEGER);
+        CREATE TABLE vote_vote (id INTEGER PRIMARY KEY, related_bill_id INTEGER);
         INSERT INTO app_legsession VALUES (10, 'ca', 't', 's', 2025, TRUE, TRUE);
-        INSERT INTO bill_bill VALUES (1, 'AB 12', 'AB 12', 10);
+        INSERT INTO bill_bill (id, session_id, label, number) VALUES (1, 10, 'AB 12', 'AB 12');
         """
     )
     return conn
@@ -52,7 +59,10 @@ def test_diff_reports_session_warnings(tmp_path, cache):
         """
         CREATE TABLE app_legsession (id INTEGER PRIMARY KEY, region_abbrev TEXT, title TEXT,
             session_name TEXT, start_year INTEGER, current BOOLEAN, regular_session BOOLEAN);
-        CREATE TABLE bill_bill (id INTEGER PRIMARY KEY, label TEXT, number TEXT, session_id INTEGER);
+        CREATE TABLE bill_bill (id INTEGER PRIMARY KEY, session_id INTEGER, label TEXT,
+            number TEXT, bill_type INTEGER, current_general_status INTEGER,
+            current_status_date TEXT, most_recent_action_date TEXT, introduced_date TEXT,
+            missing_data BOOLEAN DEFAULT 0, last_quorum_update TEXT, source TEXT);
         """
     )
     with CaseFileStore(tmp_path / "casefile.db") as casefile:
