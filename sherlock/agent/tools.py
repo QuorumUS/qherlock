@@ -79,7 +79,7 @@ def build_toolkit(settings: Settings, return_handlers: bool = False):
             try:
                 conn = reader.connect(settings.quorum_replica_dsn)
             except Exception as exc:
-                return _text({"error": f"replica connection failed: {exc}"})
+                return _text({"error": f"replica connection failed: {type(exc).__name__}"})
             try:
                 ok, err = reader.check_schema(conn)
                 if not ok:
@@ -135,7 +135,7 @@ def build_toolkit(settings: Settings, return_handlers: bool = False):
             try:
                 conn = reader.connect(settings.quorum_replica_dsn)
             except Exception as exc:
-                return _text({"error": f"replica connection failed: {exc}"})
+                return _text({"error": f"replica connection failed: {type(exc).__name__}"})
             try:
                 ok, err = reader.check_schema(conn)
                 if not ok:

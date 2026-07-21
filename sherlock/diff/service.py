@@ -12,6 +12,8 @@ TOP_CASES_LIMIT = 10
 ROLLUP_TOP_LIMIT = 15
 ROLLUP_REGION_ROWS = 30
 WARNINGS_SAMPLE = 10
+ERROR_MSG_CAP = 120
+ERRORS_MAX_ENTRIES = 10
 
 
 def diff_region(region: str, cache: LegiScanCache, casefile: CaseFileStore,
@@ -105,7 +107,7 @@ def diff_many(regions, cache: LegiScanCache, casefile: CaseFileStore, replica_co
             r = diff_region(region, cache, casefile, replica_conn,
                             sla_hours=sla_hours, today=today)
         except Exception as exc:
-            errors[region] = f"{type(exc).__name__}: {exc}"
+            errors[region] = f"{type(exc).__name__}: {exc}"[:ERROR_MSG_CAP]
             continue
         diffed += 1
         total_new += r["anomalies_new"]
@@ -126,6 +128,12 @@ def diff_many(regions, cache: LegiScanCache, casefile: CaseFileStore, replica_co
             region_rows[region] = row
         for case in r["top_cases"]:
             top.append({**case, "region": region})
+
+    if len(errors) > ERRORS_MAX_ENTRIES:
+        kept_keys = list(errors)[:ERRORS_MAX_ENTRIES]
+        more = len(errors) - ERRORS_MAX_ENTRIES
+        errors = {k: errors[k] for k in kept_keys}
+        errors["_more"] = more
 
     top.sort(key=lambda c: (c["severity"], -c["id"]))
     if len(region_rows) > ROLLUP_REGION_ROWS:

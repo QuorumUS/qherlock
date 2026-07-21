@@ -134,6 +134,20 @@ class _FakeConn:
         pass
 
 
+async def test_diff_connection_failure_does_not_leak_dsn(monkeypatch, settings):
+    settings.quorum_replica_dsn = "postgresql://user:password=SECRET@host/db"
+
+    def boom(dsn):
+        raise RuntimeError(f"connection failed: password=SECRET")
+
+    monkeypatch.setattr("sherlock.agent.tools.reader.connect", boom)
+    _server, handlers = build_toolkit(settings, return_handlers=True)
+    result = await handlers["diff"]({"scope": "CA"})
+    payload = json.loads(result["content"][0]["text"])
+    assert "password=SECRET" not in json.dumps(payload)
+    assert payload["error"] == "replica connection failed: RuntimeError"
+
+
 async def test_diff_scope_all_routes_to_diff_many(monkeypatch, settings, tmp_path):
     settings.quorum_replica_dsn = "postgresql://fake"
     monkeypatch.setattr("sherlock.agent.tools.reader.connect", lambda dsn: _FakeConn())
@@ -183,6 +197,20 @@ async def test_investigate_bill_no_dsn_error_payload(settings_no_dsn):
     result = await handlers["investigate_bill"]({"state": "CA", "session": "123", "number": "AB1"})
     payload = json.loads(result["content"][0]["text"])
     assert "QUORUM_REPLICA_DSN" in payload["error"]
+
+
+async def test_investigate_bill_connection_failure_does_not_leak_dsn(monkeypatch, settings):
+    settings.quorum_replica_dsn = "postgresql://user:password=SECRET@host/db"
+
+    def boom(dsn):
+        raise RuntimeError("connection failed: password=SECRET")
+
+    monkeypatch.setattr("sherlock.agent.tools.reader.connect", boom)
+    _server, handlers = build_toolkit(settings, return_handlers=True)
+    result = await handlers["investigate_bill"]({"state": "CA", "session": "123", "number": "AB1"})
+    payload = json.loads(result["content"][0]["text"])
+    assert "password=SECRET" not in json.dumps(payload)
+    assert payload["error"] == "replica connection failed: RuntimeError"
 
 
 async def test_investigate_bill_calls_investigate_with_quota_hook(monkeypatch, settings):

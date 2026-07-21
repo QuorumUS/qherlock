@@ -7,6 +7,7 @@ from sherlock.legiscan.client import LegiScanClient, LegiScanError
 DEGRADE_THRESHOLD = 0.8
 SESSION_LIST_TTL_DAYS = 30   # spec §6: session inventory monthly
 DATASET_LIST_TTL_DAYS = 7    # spec §6: dataset hashes weekly
+SYNC_ERROR_MSG_CAP = 200
 
 
 def _fresh(ts: str | None, ttl_days: int, now: datetime) -> bool:
@@ -101,7 +102,7 @@ def sync_many(regions, client, cache, budget_limit: int = 30000) -> dict:
         try:
             s = sync_state(region, client, cache, budget_limit=budget_limit)
         except LegiScanError as exc:
-            errors[region] = str(exc)
+            errors[region] = str(exc)[:SYNC_ERROR_MSG_CAP]
             continue
         synced += 1
         if s["degraded"]:
@@ -112,11 +113,11 @@ def sync_many(regions, client, cache, budget_limit: int = 30000) -> dict:
         session_fetches += 0 if s["session_list_cached"] else 1
         dataset_fetches += 0 if s["dataset_list_cached"] else 1
         if s["errors"]:
-            errors[region] = "; ".join(s["errors"])
+            errors[region] = "; ".join(s["errors"])[:SYNC_ERROR_MSG_CAP]
     calls = cache.calls_this_month()
     return {"scope_regions": len(list(regions)), "synced": synced,
             "degraded": degraded, "errors": errors, "totals": totals,
             "session_lists_fetched": session_fetches,
             "dataset_lists_fetched": dataset_fetches,
             "calls_this_month": calls, "budget_limit": budget_limit,
-            "budget_pct": round(100 * calls / budget_limit, 1)}
+            "budget_pct": round(100 * calls / budget_limit, 1) if budget_limit else 0.0}

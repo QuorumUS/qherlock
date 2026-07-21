@@ -98,7 +98,7 @@ class CaseFileStore:
         where = f"WHERE {' AND '.join(clauses)}" if clauses else ""
         rows = self._conn.execute(
             f"""SELECT id, fingerprint, gap_type, region, session_key, bill_number_norm,
-                       field, status, first_seen, last_seen
+                       field, severity, status, first_seen, last_seen
                 FROM anomalies {where} ORDER BY last_seen DESC LIMIT ?""",
             (*params, limit),
         ).fetchall()

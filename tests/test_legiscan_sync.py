@@ -169,28 +169,28 @@ def test_degraded_mode_makes_zero_client_calls(tmp_path):
 # -- TTL caching, per-session error isolation, sync_many -----------------------
 
 def test_session_list_cached_within_ttl(cache, fake_client):
-    sync_state("CA", fake_client, cache)                    # first run fetches
+    sync_state("CA", fake_client, cache, today_year=2026)    # first run fetches
     fake_client.calls.clear()
-    stats = sync_state("CA", fake_client, cache)
+    stats = sync_state("CA", fake_client, cache, today_year=2026)
     assert "getSessionList" not in fake_client.calls
     assert stats["session_list_cached"] is True
     assert stats["sessions"] >= 1                           # derived from cache
 
 
 def test_session_list_refetched_after_ttl(cache, fake_client):
-    sync_state("CA", fake_client, cache)
+    sync_state("CA", fake_client, cache, today_year=2026)
     # age the meta 31 days
     old = (datetime.now(timezone.utc) - timedelta(days=31)).isoformat()
     cache._conn.execute("UPDATE sync_meta SET session_list_fetched_at = ?", (old,))
     fake_client.calls.clear()
-    sync_state("CA", fake_client, cache)
+    sync_state("CA", fake_client, cache, today_year=2026)
     assert "getSessionList" in fake_client.calls
 
 
 def test_dataset_list_cached_within_ttl(cache, fake_client):
-    sync_state("CA", fake_client, cache)
+    sync_state("CA", fake_client, cache, today_year=2026)
     fake_client.calls.clear()
-    stats = sync_state("CA", fake_client, cache)
+    stats = sync_state("CA", fake_client, cache, today_year=2026)
     assert "getDatasetList" not in fake_client.calls and stats["dataset_list_cached"] is True
 
 

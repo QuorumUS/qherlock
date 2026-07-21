@@ -107,9 +107,14 @@ def patrol(scope: str = typer.Option("all", "--scope"),
            state: str = typer.Option("", "--state", help="deprecated alias for --scope"),
            objective: str = typer.Option("", "--objective")) -> None:
     """Run a full agentic patrol over SCOPE (calls the Anthropic API)."""
-    _resolve_scope(scope, state)  # early validation
+    regions = _resolve_scope(scope, state)  # early validation
     if state:
         scope = state.upper()
+    if scope.lower() != "all":
+        # Canonicalize so the recorded/prompted scope matches what was actually
+        # patrolled (e.g. "ca" -> "CA"); "all" stays as-is rather than being
+        # expanded into the full 51-region list.
+        scope = ",".join(regions)
     s = _settings()
     try:
         report = asyncio.run(run_patrol(s, scope, objective))

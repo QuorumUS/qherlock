@@ -2,9 +2,9 @@ from sherlock.casefiles.models import Anomaly
 from sherlock.casefiles.store import CaseFileStore
 
 
-def make_anomaly(number="AB12"):
+def make_anomaly(number="AB12", severity=""):
     return Anomaly(gap_type="missing_bill", region="CA", session_key="2172",
-                   bill_number_norm=number, legiscan_value="AB12",
+                   bill_number_norm=number, legiscan_value="AB12", severity=severity,
                    evidence={"legiscan_bill_id": 111, "title": "An act"})
 
 
@@ -31,8 +31,10 @@ def test_upsert_new_then_recurring(tmp_path):
 def test_list_anomalies_filters_and_limits(tmp_path):
     with CaseFileStore(tmp_path / "casefile.db") as store:
         for i in range(15):
-            store.upsert_anomaly(make_anomaly(number=f"AB{i}"))
-        assert len(store.list_anomalies(region="CA")) == 10  # default cap
+            store.upsert_anomaly(make_anomaly(number=f"AB{i}", severity="P2"))
+        rows = store.list_anomalies(region="CA")
+        assert len(rows) == 10  # default cap
+        assert all(r["severity"] == "P2" for r in rows)
         assert store.list_anomalies(region="TX") == []
         assert len(store.list_anomalies(gap_type="missing_bill", limit=3)) == 3
 

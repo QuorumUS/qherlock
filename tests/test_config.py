@@ -13,6 +13,8 @@ def test_settings_defaults(monkeypatch, tmp_path):
 
 def test_m1_defaults(monkeypatch):
     monkeypatch.delenv("SLACK_WEBHOOK_URL", raising=False)
+    monkeypatch.delenv("SHERLOCK_FRESHNESS_SLA_HOURS", raising=False)
+    monkeypatch.delenv("LEGISCAN_MONTHLY_BUDGET", raising=False)
     s = Settings(legiscan_api_key="k", _env_file=None)
     assert s.slack_webhook_url == ""
     assert s.sherlock_freshness_sla_hours == 72

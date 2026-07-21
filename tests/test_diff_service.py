@@ -260,6 +260,39 @@ def test_diff_many_rollup_and_error_isolation(tmp_path, monkeypatch):
             assert rollup["top_cases"][0]["severity"] <= rollup["top_cases"][-1]["severity"]
 
 
+def test_diff_many_error_message_is_truncated(tmp_path, monkeypatch):
+    with LegiScanCache(tmp_path / "cache.db") as cache:
+        cache.upsert_session("CA", {"session_id": 8001, "year_start": 2025, "year_end": 2026,
+                                    "special": 0, "session_name": "2025-2026 Regular Session"})
+        replica = _new_replica()
+
+        def fake_get_current_sessions(conn, region):
+            raise RuntimeError("X" * 500)
+
+        monkeypatch.setattr(reader, "get_current_sessions", fake_get_current_sessions)
+
+        with CaseFileStore(tmp_path / "casefile.db") as casefile:
+            rollup = diff_many(["CA"], cache, casefile, replica, today=date(2026, 7, 21))
+            assert "CA" in rollup["errors"]
+            assert len(rollup["errors"]["CA"]) <= 120
+
+
+def test_diff_many_errors_capped_at_ten_entries(tmp_path, monkeypatch):
+    with LegiScanCache(tmp_path / "cache.db") as cache:
+        replica = _new_replica()
+
+        def fake_get_current_sessions(conn, region):
+            raise RuntimeError("boom")
+
+        monkeypatch.setattr(reader, "get_current_sessions", fake_get_current_sessions)
+        regions = [f"R{i}" for i in range(15)]
+
+        with CaseFileStore(tmp_path / "casefile.db") as casefile:
+            rollup = diff_many(regions, cache, casefile, replica, today=date(2026, 7, 21))
+            assert len([k for k in rollup["errors"] if k != "_more"]) == 10
+            assert rollup["errors"]["_more"] == 5
+
+
 def test_second_run_counts_recurring(tmp_path):
     with LegiScanCache(tmp_path / "cache.db") as cache:
         cache.upsert_session("CA", {"session_id": 7001, "year_start": 2025, "year_end": 2026,

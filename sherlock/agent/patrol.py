@@ -118,8 +118,13 @@ async def run_patrol(settings: Settings, scope: str, objective: str = "") -> str
                        f"Patrol {patrol_id} ({scope}) FAILED: {error}")
             raise
         finally:
-            with LegiScanCache(settings.data_dir / "cache.db") as cache:
-                ls_calls = cache.calls_this_month()
+            try:
+                with LegiScanCache(settings.data_dir / "cache.db") as cache:
+                    ls_calls = cache.calls_this_month()
+            except Exception:
+                # A cache.db failure here must never mask an in-flight patrol
+                # exception (or clobber the finally block's own bookkeeping).
+                ls_calls = None
             stats: dict = {"result_chars": len(result_text),
                            "legiscan_calls_month": ls_calls}
             if result_msg is not None:
@@ -135,10 +140,11 @@ async def run_patrol(settings: Settings, scope: str, objective: str = "") -> str
     # finishes before ResultMessage exists, so this line comes from code. Also
     # doubles as heartbeat if the agent skipped its digest. Never fatal.
     if result_msg is not None:
-        cost = (f"${result_msg.total_cost_usd:.2f}" if result_msg.total_cost_usd
+        cost = (f"${result_msg.total_cost_usd:.2f}" if result_msg.total_cost_usd is not None
                 else "n/a (subscription)")
+        ls_calls_display = ls_calls if ls_calls is not None else "?"
         slack.post(settings.slack_webhook_url, "digest",
                    f"Patrol {patrol_id} ({scope}) done: {result_msg.num_turns} turns, "
                    f"{(result_msg.duration_ms or 0) // 60000}m, cost {cost}, "
-                   f"LegiScan {ls_calls}/{settings.legiscan_monthly_budget} this month.")
+                   f"LegiScan {ls_calls_display}/{settings.legiscan_monthly_budget} this month.")
     return result_text
