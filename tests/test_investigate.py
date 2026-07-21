@@ -138,3 +138,21 @@ def test_live_error_falls_back_to_cache(cache, replica):
     assert fake_client.calls == ["getBill"]
     assert result["legiscan"]["title"] == "Test Title"
     assert any("getBill" in n or "boom" in n for n in result["notes"])
+
+
+def test_stub_only_cache_with_quota_exhausted_never_raises(cache, replica):
+    cache.upsert_bill_stub(5, 1, "AB1", "hash1")
+    for _ in range(10):
+        cache.add_call("x")
+    fake_client = FakeClient(payload=_payload(title="Should not be used"))
+
+    result = investigate("CA", 5, "AB1", fake_client, cache, replica, budget_limit=10)
+
+    assert result["source"] == "cache"
+    assert fake_client.calls == []
+    assert any("quota" in n for n in result["notes"])
+    assert result["legiscan"]["bill_id"] == 1
+    assert result["legiscan"]["title"] == ""
+    assert result["legiscan"]["number"] == "AB1"
+    assert result["legiscan"]["status"] is None
+    assert result["legiscan"]["recent_actions"] == []
