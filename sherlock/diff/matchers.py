@@ -2,21 +2,69 @@ import re
 
 from sherlock.quorum.reader import SessionRow
 
-# Salvaged seed from quorum-site app/management/scraper/legiscan/comparison.py
-PREFIX_MAP: dict[str, dict[str, str]] = {"CA": {"AR": "HR"}}
+# LegiScan prefix -> Quorum prefix, applied to the LEGISCAN side ONLY.
+# Quorum's own numbers must never be translated (H.R. 24 -> HR24 must not
+# become HRES24). Salvage precedent: quorum-site comparison.py:125.
+PREFIX_MAP: dict[str, dict[str, str]] = {
+    "CA": {"AR": "HR"},
+    "US": {"HB": "HR", "SB": "S", "HR": "HRES", "SR": "SRES",
+           "HJR": "HJRES", "SJR": "SJRES", "HCR": "HCONRES", "SCR": "SCONRES"},
+}
+
+# Salvaged (comparison.py:26): LegiScan bills whose TITLE marks a type Quorum
+# deliberately does not import (MA procedural Orders, AID-226).
+IGNORED_TITLE_PREFIXES: dict[str, tuple[str, ...]] = {
+    "MA": ("order", "study order"),
+}
+
+# Quorum BillType id -> normalized prefix (quorum-site app/bill/models.py:1923),
+# for federal bills whose label is NULL (identity = bill_type + number).
+BILL_TYPE_PREFIX: dict[int, str] = {
+    1: "HRES", 2: "S", 3: "HR", 4: "SRES",
+    5: "HCONRES", 6: "SCONRES", 7: "HJRES", 8: "SJRES",
+}
 
 _CLEAN_RE = re.compile(r"[\s. ]")
 _NUM_RE = re.compile(r"^([A-Z]+)0*(\d+)$")
 
 
-def normalize_bill_number(state: str, raw: str | int | None) -> str:
+def normalize_bill_number(raw: str | int | None) -> str:
+    """Pure normalization: uppercase, strip spaces/dots, drop leading zeros.
+    No prefix translation — see legiscan_number_norm for that."""
     s = _CLEAN_RE.sub("", ("" if raw is None else str(raw)).upper())
+    m = _NUM_RE.match(s)
+    if not m:
+        return s
+    return f"{m.group(1)}{m.group(2)}"
+
+
+def legiscan_number_norm(state: str, raw: str | int | None) -> str:
+    """Normalize + per-state prefix translation. LegiScan side only."""
+    s = normalize_bill_number(raw)
     m = _NUM_RE.match(s)
     if not m:
         return s
     prefix, num = m.group(1), m.group(2)
     prefix = PREFIX_MAP.get(state.upper(), {}).get(prefix, prefix)
     return f"{prefix}{num}"
+
+
+def quorum_number_norm(label: str | None, number, bill_type: int | None = None) -> str:
+    """Quorum-side identity: normalized label; federal NULL-label fallback via
+    bill_type + number; '' when no identity can be derived (caller skips)."""
+    if label:
+        return normalize_bill_number(label)
+    if bill_type in BILL_TYPE_PREFIX and number is not None:
+        return f"{BILL_TYPE_PREFIX[bill_type]}{number}"
+    return ""
+
+
+def is_deliberately_unimported(state: str, title: str | None) -> bool:
+    """Salvaged MA order rule (comparison.py:31)."""
+    prefixes = IGNORED_TITLE_PREFIXES.get(state.upper())
+    if not prefixes:
+        return False
+    return (title or "").strip().lower().startswith(prefixes)
 
 
 def match_sessions(

@@ -1,6 +1,6 @@
 from sherlock.casefiles.models import Anomaly
 from sherlock.casefiles.store import CaseFileStore
-from sherlock.diff.matchers import match_sessions, normalize_bill_number
+from sherlock.diff.matchers import legiscan_number_norm, match_sessions, quorum_number_norm
 from sherlock.legiscan.cache import LegiScanCache
 from sherlock.quorum import reader
 
@@ -17,11 +17,11 @@ def diff_state(state: str, cache: LegiScanCache, casefile: CaseFileStore, replic
     for ls, qs in matched:
         session_key = str(ls["session_id"])
         quorum_numbers = {
-            normalize_bill_number(state, b.label or b.number)
+            quorum_number_norm(b.label, b.number)
             for b in reader.get_bills_for_session(replica_conn, qs.id)
         }
         for bill in cache.bills_for_session(ls["session_id"]):
-            norm = normalize_bill_number(state, bill["number"])
+            norm = legiscan_number_norm(state, bill["number"])
             if not norm or norm in quorum_numbers:
                 continue
             payload = cache.get_bill_payload(bill["bill_id"]) or {}
