@@ -51,6 +51,7 @@ class CaseFileStore:
         return self._conn.execute(sql, params)
 
     def upsert_anomaly(self, a: Anomaly) -> tuple[str, int]:
+        """Returns ("created"|"recurring", id). "created" is the write outcome — distinct from the lifecycle status column, whose initial value stays 'new'."""
         now = _now()
         existing = self._execute(
             "SELECT id FROM anomalies WHERE fingerprint = ?", (a.fingerprint,)
@@ -58,8 +59,8 @@ class CaseFileStore:
         if existing:
             self._execute(
                 """UPDATE anomalies SET last_seen = ?, legiscan_value = ?, quorum_value = ?,
-                          evidence_json = ? WHERE id = ?""",
-                (now, a.legiscan_value, a.quorum_value, json.dumps(a.evidence), existing["id"]),
+                          evidence_json = ?, severity = ? WHERE id = ?""",
+                (now, a.legiscan_value, a.quorum_value, json.dumps(a.evidence), a.severity, existing["id"]),
             )
             self._conn.commit()
             return "recurring", existing["id"]
@@ -67,10 +68,10 @@ class CaseFileStore:
             cur = self._execute(
                 """INSERT INTO anomalies (fingerprint, gap_type, region, session_key,
                        bill_number_norm, field, legiscan_value, quorum_value, evidence_json,
-                       status, first_seen, last_seen)
-                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'new', ?, ?)""",
+                       severity, status, first_seen, last_seen)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'new', ?, ?)""",
                 (a.fingerprint, a.gap_type, a.region, a.session_key, a.bill_number_norm,
-                 a.field, a.legiscan_value, a.quorum_value, json.dumps(a.evidence), now, now),
+                 a.field, a.legiscan_value, a.quorum_value, json.dumps(a.evidence), a.severity, now, now),
             )
         except sqlite3.IntegrityError:
             # Lost a check-then-insert race with a concurrent writer -> treat as recurring
@@ -79,13 +80,13 @@ class CaseFileStore:
             ).fetchone()
             self._execute(
                 """UPDATE anomalies SET last_seen = ?, legiscan_value = ?, quorum_value = ?,
-                          evidence_json = ? WHERE id = ?""",
-                (now, a.legiscan_value, a.quorum_value, json.dumps(a.evidence), row["id"]),
+                          evidence_json = ?, severity = ? WHERE id = ?""",
+                (now, a.legiscan_value, a.quorum_value, json.dumps(a.evidence), a.severity, row["id"]),
             )
             self._conn.commit()
             return "recurring", row["id"]
         self._conn.commit()
-        return "new", cur.lastrowid
+        return "created", cur.lastrowid
 
     def list_anomalies(self, region: str | None = None, gap_type: str | None = None,
                        status: str | None = None, limit: int = 10) -> list[dict]:

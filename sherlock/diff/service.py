@@ -37,7 +37,7 @@ def diff_state(state: str, cache: LegiScanCache, casefile: CaseFileStore, replic
                 },
             )
             kind, aid = casefile.upsert_anomaly(anomaly)
-            if kind == "new":
+            if kind == "created":
                 new += 1
             else:
                 recurring += 1

@@ -13,6 +13,7 @@ class Anomaly:
     legiscan_value: str = ""
     quorum_value: str = ""
     evidence: dict = dataclasses.field(default_factory=dict)
+    severity: str = ""  # P1–P4, computed at detection time; NOT part of the fingerprint
 
     @property
     def fingerprint(self) -> str:

@@ -20,7 +20,7 @@ def test_upsert_new_then_recurring(tmp_path):
     with CaseFileStore(tmp_path / "casefile.db") as store:
         kind1, aid1 = store.upsert_anomaly(make_anomaly())
         kind2, aid2 = store.upsert_anomaly(make_anomaly())
-        assert (kind1, kind2) == ("new", "recurring")
+        assert (kind1, kind2) == ("created", "recurring")
         assert aid1 == aid2
         row = store.get_anomaly(aid1)
         assert row["status"] == "new"
@@ -63,3 +63,25 @@ def test_upsert_race_falls_back_to_recurring(tmp_path, monkeypatch):
         kind, aid = store.upsert_anomaly(a)
         assert kind == "recurring"
         assert store.get_anomaly(aid)["fingerprint"] == a.fingerprint
+
+
+def test_upsert_returns_created_then_recurring(tmp_path):
+    with CaseFileStore(tmp_path / "c.db") as store:
+        a = Anomaly(gap_type="missing_bill", region="CA", session_key="1",
+                    bill_number_norm="AB1", severity="P2")
+        kind, aid = store.upsert_anomaly(a)
+        assert kind == "created"
+        kind2, aid2 = store.upsert_anomaly(a)
+        assert kind2 == "recurring" and aid2 == aid
+        assert store.get_anomaly(aid)["status"] == "new"  # lifecycle value untouched
+
+
+def test_severity_persisted_and_refreshed_on_recurrence(tmp_path):
+    import dataclasses
+    with CaseFileStore(tmp_path / "c.db") as store:
+        a = Anomaly(gap_type="stale", region="CA", session_key="1",
+                    bill_number_norm="AB2", field="most_recent_action_date", severity="P3")
+        _, aid = store.upsert_anomaly(a)
+        assert store.get_anomaly(aid)["severity"] == "P3"
+        store.upsert_anomaly(dataclasses.replace(a, severity="P2"))
+        assert store.get_anomaly(aid)["severity"] == "P2"
