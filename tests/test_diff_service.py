@@ -389,6 +389,37 @@ def test_ny_suffix_collision_is_warned_not_silent(tmp_path):
     assert any("collision" in w.lower() for w in summary["warnings"])
 
 
+def test_empty_cache_session_does_not_retire_anomalies(tmp_path):
+    # Reviewer repro: a session upserted (e.g. from LegiScan get_master_list_raw)
+    # but never dataset-ingested (partial sync — a LegiScanError from get_dataset
+    # left it with zero bills, or a rebuilt cache.db) must NOT authorize
+    # retirement of prior anomalies for that (region, session_key), even though
+    # it matches a Quorum session and the diff loop runs for it.
+    from qherlock.casefiles.models import Anomaly
+
+    with LegiScanCache(tmp_path / "cache.db") as cache:
+        cache.upsert_session("CA", {"session_id": 9501, "year_start": 2025, "year_end": 2026,
+                                    "special": 0, "session_name": "2025-2026 Regular Session"})
+        # deliberately no ingest_dataset_zip call -> bills_for_session(9501) == []
+
+        replica = _new_replica()
+        replica.executescript(
+            "INSERT INTO app_legsession VALUES (90, 'ca', 't', 's', 2025, TRUE, TRUE);"
+        )
+
+        with CaseFileStore(tmp_path / "casefile.db") as casefile:
+            preexisting = Anomaly(gap_type="missing_bill", region="CA", session_key="9501",
+                                  bill_number_norm="AB1")
+            casefile.upsert_anomaly(preexisting)
+
+            summary = diff_region("CA", cache, casefile, replica, today=date(2026, 7, 21))
+
+            assert summary["sessions_matched"] == 1
+            assert summary["anomalies_resolved"] == 0
+            stored = casefile.get_anomaly_by_fingerprint(preexisting.fingerprint)
+            assert stored["status"] == "new"
+
+
 def test_diff_region_reports_resolved_count(tmp_path, cache, replica):
     from qherlock.casefiles.models import Anomaly
     ghost = Anomaly(gap_type="wrong_data", region="CA", session_key="2172",

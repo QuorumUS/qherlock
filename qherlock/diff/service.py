@@ -62,7 +62,14 @@ def diff_region(region: str, cache: LegiScanCache, casefile: CaseFileStore,
 
     for ls, qs in matched:
         session_key = str(ls["session_id"])
-        processed_sessions.add(session_key)
+        ls_bills = cache.bills_for_session(ls["session_id"])
+        if ls_bills:
+            # Only a session that actually produced LegiScan bills to diff may
+            # authorize retirement of its prior anomalies. A session upserted
+            # but never dataset-ingested (partial sync, or a rebuilt cache.db)
+            # has zero live fingerprints and must not mass-resolve open
+            # anomalies for (region, session_key).
+            processed_sessions.add(session_key)
         q_bills, q_counts = get_session_data(qs.id)
         q_by_norm: dict[str, reader.BillRow] = {}
         for b in q_bills:
@@ -100,7 +107,7 @@ def diff_region(region: str, cache: LegiScanCache, casefile: CaseFileStore,
                 sib_by_norm_cache[sid] = idx
             return idx
 
-        for bill in cache.bills_for_session(ls["session_id"]):
+        for bill in ls_bills:
             norm = legiscan_number_norm(region, bill["number"])
             if not norm:
                 continue

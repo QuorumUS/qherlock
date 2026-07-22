@@ -24,6 +24,7 @@ SELECT id, label, number, bill_type, current_general_status,
        missing_data, last_quorum_update, source
 FROM bill_bill
 WHERE session_id = {ph}
+ORDER BY id
 """
 
 # One aggregate GROUP BY per related table per session — never per-bill.

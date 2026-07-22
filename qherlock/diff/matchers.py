@@ -17,7 +17,7 @@ PREFIX_MAP: dict[str, dict[str, str]] = {
 IGNORED_TITLE_PREFIXES: dict[str, tuple[str, ...]] = {
     "MA": ("order", "study order"),
 }
-IGNORED_TITLE_SUBSTRINGS: dict[str, tuple[str, ...]] = {
+IGNORED_TITLE_SUFFIXES: dict[str, tuple[str, ...]] = {
     "MA": ("extension order",),
 }
 
@@ -102,9 +102,13 @@ def is_deliberately_unimported(state: str, title: str | None) -> bool:
     prefixes = IGNORED_TITLE_PREFIXES.get(st)
     if prefixes and t.startswith(prefixes):
         return True
-    substrings = IGNORED_TITLE_SUBSTRINGS.get(st)
-    if substrings and any(s in t for s in substrings):
-        return True
+    suffixes = IGNORED_TITLE_SUFFIXES.get(st)
+    if suffixes:
+        t_stripped = t.rstrip()
+        if t_stripped.endswith("."):
+            t_stripped = t_stripped[:-1].rstrip()
+        if t_stripped.endswith(suffixes):
+            return True
     return False
 
 
