@@ -1,0 +1,11 @@
+{
+  "state": "NY",
+  "pairs": [
+    {"legiscan_number": "S115",  "quorum_label": "S.115A", "quorum_number": 115, "quorum_bill_type": 2},
+    {"legiscan_number": "S156",  "quorum_label": "S.156A", "quorum_number": 156, "quorum_bill_type": 2},
+    {"legiscan_number": "A115",  "quorum_label": "A.115",  "quorum_number": 115, "quorum_bill_type": 3},
+    {"legiscan_number": "J115",  "quorum_label": "J.115",  "quorum_number": 115, "quorum_bill_type": 4},
+    {"legiscan_number": "K115",  "quorum_label": "K.115",  "quorum_number": 115, "quorum_bill_type": 1}
+  ],
+  "genuine_missing": {"legiscan_number": "A33878", "quorum_label": null}
+}

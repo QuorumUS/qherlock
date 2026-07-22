@@ -1,0 +1,10 @@
+{
+  "state": "WI",
+  "session_key": "2197",
+  "resolutions_passed_adopted": [
+    {"number": "AJR143", "ls_status": 4, "quorum_status": 4},
+    {"number": "SJR137", "ls_status": 4, "quorum_status": 4},
+    {"number": "SJR2",   "ls_status": 4, "quorum_status": 4}
+  ],
+  "genuine_regular_bill_behind": {"number": "SB10", "ls_status": 4, "quorum_status": 1}
+}
