@@ -13,7 +13,7 @@ CREATE TABLE IF NOT EXISTS anomalies (
     bill_number_norm TEXT NOT NULL, field TEXT NOT NULL DEFAULT '',
     legiscan_value TEXT, quorum_value TEXT, evidence_json TEXT,
     severity TEXT, classification TEXT,
-    status TEXT NOT NULL DEFAULT 'new',
+    status TEXT NOT NULL DEFAULT 'new', resolved_at TEXT,
     first_seen TEXT NOT NULL, last_seen TEXT NOT NULL
 );
 CREATE TABLE IF NOT EXISTS patrols (
@@ -36,6 +36,10 @@ class CaseFileStore:
         self._conn.execute("PRAGMA journal_mode=WAL")
         self._conn.execute("PRAGMA busy_timeout=5000")
         self._conn.executescript(_SCHEMA)
+        cols = {r[1] for r in self._conn.execute("PRAGMA table_info(anomalies)")}
+        if "resolved_at" not in cols:
+            self._conn.execute("ALTER TABLE anomalies ADD COLUMN resolved_at TEXT")
+            self._conn.commit()
 
     def __enter__(self):
         return self
@@ -59,7 +63,8 @@ class CaseFileStore:
         if existing:
             self._execute(
                 """UPDATE anomalies SET last_seen = ?, legiscan_value = ?, quorum_value = ?,
-                          evidence_json = ?, severity = ? WHERE id = ?""",
+                          evidence_json = ?, severity = ?, status = 'new', resolved_at = NULL
+                          WHERE id = ?""",
                 (now, a.legiscan_value, a.quorum_value, json.dumps(a.evidence), a.severity, existing["id"]),
             )
             self._conn.commit()
@@ -80,7 +85,8 @@ class CaseFileStore:
             ).fetchone()
             self._execute(
                 """UPDATE anomalies SET last_seen = ?, legiscan_value = ?, quorum_value = ?,
-                          evidence_json = ?, severity = ? WHERE id = ?""",
+                          evidence_json = ?, severity = ?, status = 'new', resolved_at = NULL
+                          WHERE id = ?""",
                 (now, a.legiscan_value, a.quorum_value, json.dumps(a.evidence), a.severity, row["id"]),
             )
             self._conn.commit()
@@ -113,6 +119,36 @@ class CaseFileStore:
         d = dict(row)
         d["evidence"] = json.loads(d.pop("evidence_json") or "{}")
         return d
+
+    def get_anomaly_by_fingerprint(self, fingerprint: str) -> dict | None:
+        row = self._conn.execute(
+            "SELECT * FROM anomalies WHERE fingerprint = ?", (fingerprint,)
+        ).fetchone()
+        return dict(row) if row is not None else None
+
+    def retire_resolved(self, region: str, session_keys: set[str],
+                        live_fingerprints: set[str]) -> int:
+        """Flip status='new' anomalies in (region, session_key in session_keys)
+        whose fingerprint is NOT in live_fingerprints to 'resolved'. Scoped:
+        only the given sessions are touched. Returns count retired."""
+        if not session_keys:
+            return 0
+        now = _now()
+        sk = list(session_keys)
+        rows = self._conn.execute(
+            f"""SELECT id, fingerprint FROM anomalies
+                WHERE region = ? AND status = 'new'
+                  AND session_key IN ({','.join('?' * len(sk))})""",
+            (region, *sk),
+        ).fetchall()
+        to_retire = [r["id"] for r in rows if r["fingerprint"] not in live_fingerprints]
+        for aid in to_retire:
+            self._conn.execute(
+                "UPDATE anomalies SET status = 'resolved', resolved_at = ? WHERE id = ?",
+                (now, aid),
+            )
+        self._conn.commit()
+        return len(to_retire)
 
     def start_patrol(self, scope: str) -> int:
         cur = self._conn.execute(

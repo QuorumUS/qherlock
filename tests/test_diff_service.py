@@ -387,3 +387,14 @@ def test_ny_suffix_collision_is_warned_not_silent(tmp_path):
         with CaseFileStore(tmp_path / "casefile.db") as casefile:
             summary = diff_region("NY", c, casefile, replica)
     assert any("collision" in w.lower() for w in summary["warnings"])
+
+
+def test_diff_region_reports_resolved_count(tmp_path, cache, replica):
+    from qherlock.casefiles.models import Anomaly
+    ghost = Anomaly(gap_type="wrong_data", region="CA", session_key="2172",
+                    bill_number_norm="GONE99", field="status")
+    with CaseFileStore(tmp_path / "casefile.db") as casefile:
+        casefile.upsert_anomaly(ghost)
+        summary = diff_region("CA", cache, casefile, replica)
+        assert summary["anomalies_resolved"] >= 1
+        assert casefile.get_anomaly_by_fingerprint(ghost.fingerprint)["status"] == "resolved"

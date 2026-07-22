@@ -34,6 +34,8 @@ def diff_region(region: str, cache: LegiScanCache, casefile: CaseFileStore,
     counts: dict[str, dict[str, int]] = {}
     ignored = 0
     cases: list[dict] = []
+    live_fingerprints: set[str] = set()
+    processed_sessions: set[str] = set()
 
     # Lazy per-Quorum-session cache: bills + bill counts fetched at most once
     # per session id, whether it's the primary matched session or a sibling
@@ -49,6 +51,7 @@ def diff_region(region: str, cache: LegiScanCache, casefile: CaseFileStore,
         return cached
 
     def record(anomaly: Anomaly, title: str = ""):
+        live_fingerprints.add(anomaly.fingerprint)
         kind, aid = casefile.upsert_anomaly(anomaly)
         bucket = counts.setdefault(anomaly.gap_type, {"new": 0, "recurring": 0})
         bucket["new" if kind == "created" else "recurring"] += 1
@@ -59,6 +62,7 @@ def diff_region(region: str, cache: LegiScanCache, casefile: CaseFileStore,
 
     for ls, qs in matched:
         session_key = str(ls["session_id"])
+        processed_sessions.add(session_key)
         q_bills, q_counts = get_session_data(qs.id)
         q_by_norm: dict[str, reader.BillRow] = {}
         for b in q_bills:
@@ -136,11 +140,14 @@ def diff_region(region: str, cache: LegiScanCache, casefile: CaseFileStore,
                         sla_hours=sla_hours, today=today):
                     record(anomaly)
 
+    resolved = casefile.retire_resolved(region, processed_sessions, live_fingerprints)
+
     cases.sort(key=lambda c: (c["severity"], -c["id"]))
     new = sum(c["new"] for c in counts.values())
     recurring = sum(c["recurring"] for c in counts.values())
     return {"region": region, "sessions_matched": len(matched), "warnings": warnings,
             "anomalies_new": new, "anomalies_recurring": recurring,
+            "anomalies_resolved": resolved,
             "counts_by_gap_type": counts, "ignored": ignored,
             "top_cases": cases[:TOP_CASES_LIMIT]}
 
@@ -157,7 +164,7 @@ def diff_many(regions, cache: LegiScanCache, casefile: CaseFileStore, replica_co
     errors: dict[str, str] = {}
     top: list[dict] = []
     warn_sample: list[str] = []
-    total_new = total_rec = warn_count = diffed = 0
+    total_new = total_rec = warn_count = diffed = total_resolved = 0
 
     for region in regions:
         try:
@@ -169,6 +176,7 @@ def diff_many(regions, cache: LegiScanCache, casefile: CaseFileStore, replica_co
         diffed += 1
         total_new += r["anomalies_new"]
         total_rec += r["anomalies_recurring"]
+        total_resolved += r["anomalies_resolved"]
         warn_count += len(r["warnings"])
         for w in r["warnings"]:
             if len(warn_sample) < WARNINGS_SAMPLE:
@@ -201,5 +209,6 @@ def diff_many(regions, cache: LegiScanCache, casefile: CaseFileStore, replica_co
     return {"scope_regions": len(list(regions)), "regions_diffed": diffed,
             "errors": errors, "counts_by_gap_type": per_gap,
             "anomalies_new": total_new, "anomalies_recurring": total_rec,
+            "anomalies_resolved": total_resolved,
             "regions": region_rows, "warnings_count": warn_count,
             "warnings_sample": warn_sample, "top_cases": top[:ROLLUP_TOP_LIMIT]}

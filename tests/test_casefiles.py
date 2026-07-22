@@ -87,3 +87,32 @@ def test_severity_persisted_and_refreshed_on_recurrence(tmp_path):
         assert store.get_anomaly(aid)["severity"] == "P3"
         store.upsert_anomaly(dataclasses.replace(a, severity="P2"))
         assert store.get_anomaly(aid)["severity"] == "P2"
+
+
+def test_retire_resolved_flips_absent_new_anomalies(tmp_path):
+    from qherlock.casefiles.store import CaseFileStore
+    from qherlock.casefiles.models import Anomaly
+    a = Anomaly(gap_type="missing_bill", region="NY", session_key="2188",
+                bill_number_norm="S115A")
+    b = Anomaly(gap_type="missing_bill", region="NY", session_key="2188",
+                bill_number_norm="A9999")
+    with CaseFileStore(tmp_path / "cf.db") as cf:
+        cf.upsert_anomaly(a)
+        cf.upsert_anomaly(b)
+        # Only b still reproduces; a is fixed -> a retires, b stays new.
+        n = cf.retire_resolved("NY", {"2188"}, {b.fingerprint})
+        assert n == 1
+        assert cf.get_anomaly_by_fingerprint(a.fingerprint)["status"] == "resolved"
+        assert cf.get_anomaly_by_fingerprint(b.fingerprint)["status"] == "new"
+
+
+def test_retire_resolved_scoped_to_given_sessions(tmp_path):
+    from qherlock.casefiles.store import CaseFileStore
+    from qherlock.casefiles.models import Anomaly
+    other = Anomaly(gap_type="missing_bill", region="NY", session_key="9999",
+                    bill_number_norm="S1")
+    with CaseFileStore(tmp_path / "cf.db") as cf:
+        cf.upsert_anomaly(other)
+        # Retiring session 2188 must not touch session 9999.
+        cf.retire_resolved("NY", {"2188"}, set())
+        assert cf.get_anomaly_by_fingerprint(other.fingerprint)["status"] == "new"
