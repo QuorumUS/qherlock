@@ -12,9 +12,13 @@ PREFIX_MAP: dict[str, dict[str, str]] = {
 }
 
 # Salvaged (comparison.py:26): LegiScan bills whose TITLE marks a type Quorum
-# deliberately does not import (MA procedural Orders, AID-226).
+# deliberately does not import. MA procedural Orders come two ways: leading
+# "order"/"study order" (prefix) and trailing "... Extension Order" (suffix).
 IGNORED_TITLE_PREFIXES: dict[str, tuple[str, ...]] = {
     "MA": ("order", "study order"),
+}
+IGNORED_TITLE_SUBSTRINGS: dict[str, tuple[str, ...]] = {
+    "MA": ("extension order",),
 }
 
 # Quorum BillType id -> normalized prefix (quorum-site app/bill/models.py:1923),
@@ -74,11 +78,19 @@ def quorum_number_norm(label: str | None, number, bill_type: int | None = None,
 
 
 def is_deliberately_unimported(state: str, title: str | None) -> bool:
-    """Salvaged MA order rule (comparison.py:31)."""
-    prefixes = IGNORED_TITLE_PREFIXES.get(state.upper())
-    if not prefixes:
+    """Salvaged MA order rule (comparison.py:31), extended for suffix-form
+    '... Extension Order' titles."""
+    t = (title or "").strip().lower()
+    if not t:
         return False
-    return (title or "").strip().lower().startswith(prefixes)
+    st = state.upper()
+    prefixes = IGNORED_TITLE_PREFIXES.get(st)
+    if prefixes and t.startswith(prefixes):
+        return True
+    substrings = IGNORED_TITLE_SUBSTRINGS.get(st)
+    if substrings and any(s in t for s in substrings):
+        return True
+    return False
 
 
 def match_sessions(

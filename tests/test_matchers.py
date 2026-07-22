@@ -87,3 +87,19 @@ def test_amendment_suffix_only_for_configured_states():
 def test_amendment_suffix_leaves_plain_numbers_alone():
     # No trailing letter -> unchanged even in NY.
     assert quorum_number_norm("AB 12", 12, None, state="NY") == "AB12"
+
+
+def test_ma_extension_order_suffix_suppressed():
+    assert is_deliberately_unimported("MA", "Financial Services -- Extension Order")
+    assert is_deliberately_unimported("MA", "Revenue - Extension Order")
+    assert is_deliberately_unimported("MA", "The Judiciary -- Extension Order")
+    # Existing prefix rule still holds:
+    assert is_deliberately_unimported("MA", "Order relative to X")
+
+
+def test_ma_non_extension_orders_still_flagged():
+    # These two real cases are NOT extension orders -> not suppressed.
+    assert not is_deliberately_unimported("MA", "Communication from the Gaming Commission")
+    assert not is_deliberately_unimported("MA", "Resolutions responding to the SJC order of May 7")
+    # Other states unaffected:
+    assert not is_deliberately_unimported("CA", "Some Extension Order")
