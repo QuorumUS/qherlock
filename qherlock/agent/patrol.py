@@ -26,13 +26,14 @@ gaps; P4 = cosmetic.
 LegiScan session_id shown as session_key on the anomaly — for at most 5 cases where \
 the recorded evidence is ambiguous. Each live call spends LegiScan quota; do not \
 investigate what the diff evidence already explains.
-5. Digest: call post_slack with kind "digest" and one message containing: scope \
-covered; anomaly counts by gap type and by region (new vs recurring); up to 5 notable \
-cases, each with region, bill number, and your one-line diagnosis; degraded or \
-errored regions; LegiScan calls_this_month from the sync output. Keep it under 3500 \
-characters — overflow is truncated automatically.
+5. Digest: call post_slack with kind "digest" and ONE compact message (target \
+under 1,000 characters — smaller is better; the full detail belongs in the report, \
+not Slack). Include: one-line scope; counts by gap type as new/recurring/resolved; \
+the top 3 case families each with region + one-line diagnosis; degraded or errored \
+regions only if any; LegiScan calls_this_month. Do not paste per-bill lists.
 6. Report: finish with a full markdown patrol report: everything in the digest plus \
-session-match warnings, cluster diagnoses, and recommended next steps.
+counts by gap type (new vs recurring vs resolved), session-match warnings, cluster \
+diagnoses, and recommended next steps.
 
 Triage rules:
 - Session-match warnings usually mean false positives downstream — say so prominently \

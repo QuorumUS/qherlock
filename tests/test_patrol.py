@@ -61,6 +61,12 @@ def test_build_options_no_credentials_uses_logged_in_claude(tmp_path, monkeypatc
     assert not options.env  # spawned claude CLI falls back to the host's logged-in OAuth
 
 
+def test_doctrine_digest_targets_small_size():
+    from qherlock.agent.patrol import DOCTRINE
+    assert "1000 character" in DOCTRINE or "1,000 character" in DOCTRINE
+    assert "resolved" in DOCTRINE.lower()
+
+
 def test_write_transcript_line_is_jsonl():
     class FakeMsg:
         def __str__(self):
