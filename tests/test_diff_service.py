@@ -311,6 +311,30 @@ def test_second_run_counts_recurring(tmp_path):
             assert s2["anomalies_new"] == 0 and s2["anomalies_recurring"] >= 1
 
 
+def test_ca_abx_found_in_sibling_special_session(tmp_path):
+    from qherlock.legiscan.cache import LegiScanCache
+    from tests.test_legiscan_cache import BILL, make_dataset_zip
+    replica = _new_replica()
+    replica.executescript(
+        """
+        INSERT INTO app_legsession VALUES (30, 'ca', 't', 'reg', 2025, TRUE, TRUE);
+        INSERT INTO app_legsession VALUES (31, 'ca', 't', 'x1', 2025, TRUE, FALSE);
+        INSERT INTO bill_bill (id, session_id, label, number, bill_type,
+            current_general_status, most_recent_action_date)
+        VALUES (1, 31, 'ABX1 15', 15, 3, 6, '2026-06-10');
+        """
+    )
+    with LegiScanCache(tmp_path / "cache.db") as c:
+        c.upsert_session("CA", {"session_id": 2172, "year_start": 2025, "year_end": 2026,
+                                "special": 0, "session_name": "2025-2026 Regular Session"})
+        c.ingest_dataset_zip(2172, make_dataset_zip(
+            [dict(BILL, bill_id=1, bill_number="ABX1 15", title="Budget Act")]))
+        with CaseFileStore(tmp_path / "casefile.db") as casefile:
+            summary = diff_region("CA", c, casefile, replica)
+    missing = summary["counts_by_gap_type"].get("missing_bill", {})
+    assert missing.get("new", 0) == 0
+
+
 def test_ny_suffix_collision_is_warned_not_silent(tmp_path):
     from qherlock.legiscan.cache import LegiScanCache
     from tests.test_legiscan_cache import BILL, make_dataset_zip

@@ -3,8 +3,8 @@ from datetime import datetime, timezone
 from qherlock.casefiles.models import Anomaly
 from qherlock.casefiles.store import CaseFileStore
 from qherlock.diff.detectors import _as_date, compute_severity, detect_bill_anomalies
-from qherlock.diff.matchers import (is_deliberately_unimported, legiscan_number_norm,
-                                    match_sessions, quorum_number_norm)
+from qherlock.diff.matchers import (is_deliberately_unimported, is_extraordinary_number,
+                                    legiscan_number_norm, match_sessions, quorum_number_norm)
 from qherlock.legiscan.cache import LegiScanCache
 from qherlock.quorum import reader
 
@@ -23,6 +23,13 @@ def diff_region(region: str, cache: LegiScanCache, casefile: CaseFileStore,
     ls_sessions = cache.get_sessions(region)
     q_sessions = reader.get_current_sessions(replica_conn, region)
     matched, warnings = match_sessions(ls_sessions, q_sessions)
+
+    # Sibling special sessions per biennium start_year, for extraordinary-session
+    # bills LegiScan folds into the regular dataset (CA ABX). Only special sessions.
+    siblings_by_year: dict[int | None, list] = {}
+    for q in q_sessions:
+        if not q.regular_session:
+            siblings_by_year.setdefault(q.start_year, []).append(q)
 
     counts: dict[str, dict[str, int]] = {}
     ignored = 0
@@ -59,6 +66,16 @@ def diff_region(region: str, cache: LegiScanCache, casefile: CaseFileStore,
             if not norm:
                 continue
             q_bill = q_by_norm.get(norm)
+            if q_bill is None and is_extraordinary_number(region, bill["number"]):
+                for sib in siblings_by_year.get(qs.start_year, []):
+                    sib_bills = reader.get_bills_for_session(replica_conn, sib.id)
+                    for sb in sib_bills:
+                        if quorum_number_norm(sb.label, sb.number, sb.bill_type,
+                                              state=region) == norm:
+                            q_bill = sb
+                            break
+                    if q_bill is not None:
+                        break
             if q_bill is None:
                 payload = cache.get_bill_payload(bill["bill_id"]) or {}
                 title = (payload.get("title") or "").strip()

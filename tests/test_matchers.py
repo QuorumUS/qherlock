@@ -103,3 +103,12 @@ def test_ma_non_extension_orders_still_flagged():
     assert not is_deliberately_unimported("MA", "Resolutions responding to the SJC order of May 7")
     # Other states unaffected:
     assert not is_deliberately_unimported("CA", "Some Extension Order")
+
+
+def test_is_extraordinary_number():
+    from qherlock.diff.matchers import is_extraordinary_number
+    assert is_extraordinary_number("CA", "ABX1 15")
+    assert is_extraordinary_number("CA", "SBX2 3")
+    assert not is_extraordinary_number("CA", "AB 15")
+    assert not is_extraordinary_number("CA", "SB 3")
+    assert not is_extraordinary_number("US", "HR 24")
