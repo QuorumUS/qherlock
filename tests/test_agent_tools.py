@@ -12,6 +12,8 @@ from qherlock.config import Settings
 @pytest.fixture
 def settings(tmp_path, monkeypatch):
     monkeypatch.setenv("LEGISCAN_API_KEY", "k")
+    monkeypatch.delenv("SLACK_BOT_TOKEN", raising=False)
+    monkeypatch.delenv("SLACK_CHANNEL_ID", raising=False)
     return Settings(_env_file=None, data_dir=tmp_path / "data", runs_dir=tmp_path / "runs")
 
 

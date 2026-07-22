@@ -248,7 +248,7 @@ used with no configuration at all; for headless hosts set `CLAUDE_CODE_OAUTH_TOK
 when both are set. This matches QuorumUS/virgil's auth (subscription OAuth, no API-key billing).
 
 Env (`.env`): `LEGISCAN_API_KEY` (present), `CLAUDE_CODE_OAUTH_TOKEN` (headless only; see auth
-above), `ANTHROPIC_API_KEY` (optional fallback), `SLACK_BOT_TOKEN` + `SLACK_CHANNEL_ID` (superseded 2026-07-21),
+above), `ANTHROPIC_API_KEY` (optional fallback), `SLACK_BOT_TOKEN` + `SLACK_CHANNEL_ID` (replaces `SLACK_WEBHOOK_URL`, superseded 2026-07-21 — see 2026-07-21-slack-token-design.md),
 `QUORUM_REPLICA_DSN`, `QHERLOCK_MODEL=claude-sonnet-5`, `QHERLOCK_LIVE=0`,
 `QHERLOCK_KILL_SWITCH=0`, `QHERLOCK_MAX_FIXES_PER_CYCLE=25`, `QHERLOCK_MAX_FIXES_PER_STATE=10`,
 `QHERLOCK_FRESHNESS_SLA_HOURS=72`, `QHERLOCK_MAX_TURNS=100`. Teleport via standard `tsh login`

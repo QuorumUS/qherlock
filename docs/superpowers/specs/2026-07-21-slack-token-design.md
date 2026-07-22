@@ -51,7 +51,7 @@ settings.slack_channel_id, kind, text)`:
 
 - `qherlock/agent/tools.py` — `post_slack` handler (tool description drops
   the word "webhook").
-- `qherlock/agent/patrol.py` — 4 call sites (abort alerts ×2, budget alert,
+- `qherlock/agent/patrol.py` — 4 call sites (abort alerts ×2, mid-stream FAILED alert,
   final digest).
 
 ## Tests (`tests/test_slack.py`)

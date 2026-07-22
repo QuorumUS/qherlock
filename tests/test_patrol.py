@@ -12,6 +12,8 @@ from qherlock.config import Settings
 
 def make_settings(tmp_path, monkeypatch, **kwargs):
     monkeypatch.setenv("LEGISCAN_API_KEY", "k")
+    monkeypatch.delenv("SLACK_BOT_TOKEN", raising=False)
+    monkeypatch.delenv("SLACK_CHANNEL_ID", raising=False)
     return Settings(_env_file=None, data_dir=tmp_path / "data", runs_dir=tmp_path / "runs", **kwargs)
 
 
@@ -191,7 +193,7 @@ async def test_run_patrol_stats_include_result_message_fields(tmp_path, monkeypa
     assert stats["legiscan_calls_month"] == 0
 
 
-async def test_footer_digest_posted_when_webhook_set(tmp_path, monkeypatch):
+async def test_footer_digest_posted_when_slack_configured(tmp_path, monkeypatch):
     from qherlock.agent import patrol as patrol_mod
 
     settings = make_settings(tmp_path, monkeypatch, slack_bot_token="xoxb-test", slack_channel_id="C123")
