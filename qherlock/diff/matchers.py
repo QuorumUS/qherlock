@@ -24,6 +24,12 @@ BILL_TYPE_PREFIX: dict[int, str] = {
     5: "HCONRES", 6: "SCONRES", 7: "HJRES", 8: "SJRES",
 }
 
+# States where Quorum stores an amended bill under a suffixed label (NY: S.115A)
+# while LegiScan reports the base number (S115). Strip the trailing letter so the
+# two sides match. Prefix-preserving: only a single trailing [A-Z] is removed.
+AMENDMENT_SUFFIX_STATES: frozenset[str] = frozenset({"NY"})
+_SUFFIX_RE = re.compile(r"^([A-Z]+\d+)([A-Z])$")
+
 _CLEAN_RE = re.compile(r"[\s. ]")
 _NUM_RE = re.compile(r"^([A-Z]+)0*(\d+)$")
 
@@ -49,11 +55,19 @@ def legiscan_number_norm(state: str, raw: str | int | None) -> str:
     return f"{prefix}{num}"
 
 
-def quorum_number_norm(label: str | None, number, bill_type: int | None = None) -> str:
+def quorum_number_norm(label: str | None, number, bill_type: int | None = None,
+                       state: str | None = None) -> str:
     """Quorum-side identity: normalized label; federal NULL-label fallback via
-    bill_type + number; '' when no identity can be derived (caller skips)."""
+    bill_type + number; '' when no identity can be derived (caller skips).
+    For AMENDMENT_SUFFIX_STATES, a single trailing amendment letter is dropped
+    (S.115A -> S115) so amended bills match LegiScan's base number."""
     if label:
-        return normalize_bill_number(label)
+        norm = normalize_bill_number(label)
+        if state and state.upper() in AMENDMENT_SUFFIX_STATES:
+            m = _SUFFIX_RE.match(norm)
+            if m:
+                return m.group(1)
+        return norm
     if bill_type in BILL_TYPE_PREFIX and number is not None:
         return f"{BILL_TYPE_PREFIX[bill_type]}{number}"
     return ""

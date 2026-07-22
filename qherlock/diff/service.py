@@ -43,9 +43,16 @@ def diff_region(region: str, cache: LegiScanCache, casefile: CaseFileStore,
         q_counts = reader.get_bill_counts_for_session(replica_conn, qs.id)
         q_by_norm: dict[str, reader.BillRow] = {}
         for b in q_bills:
-            norm = quorum_number_norm(b.label, b.number, b.bill_type)
-            if norm:
-                q_by_norm[norm] = b
+            norm = quorum_number_norm(b.label, b.number, b.bill_type, state=region)
+            if not norm:
+                continue
+            if norm in q_by_norm:
+                warnings.append(
+                    f"{region} session {session_key}: bill-number collision on {norm!r} "
+                    f"(labels {q_by_norm[norm].label!r} and {b.label!r}) — kept first"
+                )
+                continue
+            q_by_norm[norm] = b
 
         for bill in cache.bills_for_session(ls["session_id"]):
             norm = legiscan_number_norm(region, bill["number"])

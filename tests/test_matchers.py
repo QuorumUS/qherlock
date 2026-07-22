@@ -66,3 +66,24 @@ def test_match_sessions_warns_on_no_candidate():
     matched, warnings = match_sessions(ls, [make_qsession()])  # only a regular session
     assert matched == []
     assert len(warnings) == 1 and "2173" in warnings[0]
+
+
+def test_ny_amendment_suffix_stripped():
+    # NY session 3596 real rows: amended Senate/Assembly bills carry a trailing letter.
+    assert quorum_number_norm("S.115A", 115, 2, state="NY") == "S115"
+    assert quorum_number_norm("S.156A", 156, 2, state="NY") == "S156"
+    # Non-amended rows and other prefixes are untouched.
+    assert quorum_number_norm("A.115", 115, 3, state="NY") == "A115"
+    assert quorum_number_norm("J.115", 115, 4, state="NY") == "J115"
+    assert quorum_number_norm("K.115", 115, 1, state="NY") == "K115"
+
+
+def test_amendment_suffix_only_for_configured_states():
+    # Same label in a non-configured state keeps the trailing letter.
+    assert quorum_number_norm("S.115A", 115, 2, state="CA") == "S115A"
+    assert quorum_number_norm("S.115A", 115, 2) == "S115A"  # no state -> no strip
+
+
+def test_amendment_suffix_leaves_plain_numbers_alone():
+    # No trailing letter -> unchanged even in NY.
+    assert quorum_number_norm("AB 12", 12, None, state="NY") == "AB12"

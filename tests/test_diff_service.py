@@ -309,3 +309,26 @@ def test_second_run_counts_recurring(tmp_path):
             diff_region("CA", cache, casefile, replica, today=date(2026, 7, 21))
             s2 = diff_region("CA", cache, casefile, replica, today=date(2026, 7, 21))
             assert s2["anomalies_new"] == 0 and s2["anomalies_recurring"] >= 1
+
+
+def test_ny_suffix_collision_is_warned_not_silent(tmp_path):
+    from qherlock.legiscan.cache import LegiScanCache
+    from tests.test_legiscan_cache import BILL, make_dataset_zip
+    replica = _new_replica()
+    # Contrived collision: base S115 AND amended S.115A in one NY session both -> S115.
+    replica.executescript(
+        """
+        INSERT INTO app_legsession VALUES (20, 'ny', 't', 's', 2025, TRUE, TRUE);
+        INSERT INTO bill_bill (id, session_id, label, number, bill_type,
+            current_general_status, most_recent_action_date)
+        VALUES (1, 20, 'S.115', 115, 2, 1, '2026-06-10'),
+               (2, 20, 'S.115A', 115, 2, 1, '2026-06-10');
+        """
+    )
+    with LegiScanCache(tmp_path / "cache.db") as c:
+        c.upsert_session("NY", {"session_id": 2188, "year_start": 2025, "year_end": 2026,
+                                "special": 0, "session_name": "2025-2026 Regular Session"})
+        c.ingest_dataset_zip(2188, make_dataset_zip([dict(BILL, bill_id=1, bill_number="S115")]))
+        with CaseFileStore(tmp_path / "casefile.db") as casefile:
+            summary = diff_region("NY", c, casefile, replica)
+    assert any("collision" in w.lower() for w in summary["warnings"])
