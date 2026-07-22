@@ -5,9 +5,11 @@ LegiScan is a recall oracle only — when Quorum is ahead (newer dates, higher
 status rank, terminal failed) nothing is flagged. A bill may flip
 stale -> wrong_data across patrols; distinct fingerprints, intended.
 """
+import re
 from datetime import date, datetime, timedelta
 
 from qherlock.casefiles.models import Anomaly
+from qherlock.diff.matchers import normalize_bill_number
 from qherlock.quorum.reader import BillCounts, BillRow
 
 INCOMPLETE_FIELDS = ("sponsors", "actions", "texts", "votes")
@@ -37,6 +39,15 @@ LEGISCAN_MIN_RANK: dict[int, int] = {
     4: 6,  # Passed = law
     5: 5,  # Vetoed -> must at least have reached the executive
 }
+
+# Resolution number prefixes (raw LegiScan side, BEFORE per-state translation).
+# Resolutions are adopted, never enacted — LegiScan "Passed" (4) means adopted,
+# so it requires only adopted rank (4), not enacted rank (6).
+RESOLUTION_PREFIXES: frozenset[str] = frozenset({
+    "HR", "SR", "AR", "JR", "HJR", "SJR", "AJR", "HCR", "SCR", "ACR", "SJRCA", "HJRCA",
+})
+_RESOLUTION_MIN_RANK: dict[int, int] = {**LEGISCAN_MIN_RANK, 4: 4}
+_PREFIX_RE = re.compile(r"^([A-Z]+)\d+$")
 
 
 def _as_date(v) -> date | None:
@@ -106,7 +117,12 @@ def detect_bill_anomalies(region: str, session_key: str, number_norm: str,
         return out  # precedence: stale wins over wrong_data
 
     q_rank = GENERAL_STATUS_RANK.get(q_bill.current_general_status or 0)
-    min_rank = LEGISCAN_MIN_RANK.get(ls_bill.get("status") or 0)
+    ls_status = ls_bill.get("status") or 0
+    raw_norm = normalize_bill_number(ls_bill.get("number"))
+    pm = _PREFIX_RE.match(raw_norm)
+    is_resolution = bool(pm) and pm.group(1) in RESOLUTION_PREFIXES
+    rank_map = _RESOLUTION_MIN_RANK if is_resolution else LEGISCAN_MIN_RANK
+    min_rank = rank_map.get(ls_status)
     if q_rank is not None and min_rank is not None and q_rank < min_rank:
         out.append(Anomaly(
             gap_type="wrong_data", region=region, session_key=session_key,

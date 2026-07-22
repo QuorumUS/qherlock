@@ -105,3 +105,26 @@ def test_severity_rubric():
 def test_status_maps_have_no_non_us_ids():
     assert all(k < 100 for k in GENERAL_STATUS_RANK)
     assert 6 not in LEGISCAN_MIN_RANK  # LS Failed deliberately unmapped
+
+
+def _qbill(status, mrad="2025-05-20"):
+    return BillRow(id=1, label="x", number="1", bill_type=7,
+                   current_general_status=status, current_status_date=mrad,
+                   most_recent_action_date=mrad, introduced_date=mrad,
+                   missing_data=False, last_quorum_update=mrad, source="")
+
+
+def test_resolution_passed_at_adopted_rank_not_flagged():
+    ls = {"number": "AJR143", "status": 4, "last_action_date": "2025-05-20",
+          "bill_id": 1, "n_sponsors": 0, "n_actions": 0, "n_texts": 0, "n_votes": 0}
+    out = detect_bill_anomalies("WI", "2197", "AJR143", ls, _qbill(4), BillCounts(),
+                                sla_hours=72, today=date(2025, 5, 21))
+    assert [a for a in out if a.gap_type == "wrong_data"] == []
+
+
+def test_regular_bill_passed_but_introduced_still_flagged():
+    ls = {"number": "SB10", "status": 4, "last_action_date": "2025-05-20",
+          "bill_id": 2, "n_sponsors": 0, "n_actions": 0, "n_texts": 0, "n_votes": 0}
+    out = detect_bill_anomalies("WI", "2197", "SB10", ls, _qbill(1), BillCounts(),
+                                sla_hours=72, today=date(2025, 5, 21))
+    assert any(a.gap_type == "wrong_data" for a in out)
