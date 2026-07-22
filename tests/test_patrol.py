@@ -131,7 +131,7 @@ async def test_preflight_connect_failure_posts_alert_and_raises(tmp_path, monkey
     from qherlock.agent import patrol as patrol_mod
 
     settings = make_settings(tmp_path, monkeypatch, quorum_replica_dsn="postgresql://x",
-                              slack_webhook_url="https://hooks.example/x")
+                              slack_bot_token="xoxb-test", slack_channel_id="C123")
     posts = []
     monkeypatch.setattr(patrol_mod, "slack",
                          types.SimpleNamespace(post=lambda *a, **k: posts.append(a) or {"ok": True}))
@@ -139,14 +139,14 @@ async def test_preflight_connect_failure_posts_alert_and_raises(tmp_path, monkey
 
     with pytest.raises(PatrolFatalError, match="replica unreachable: OSError"):
         await patrol_mod.run_patrol(settings, "all")
-    assert posts and posts[0][1] == "alert"
+    assert posts and posts[0][2] == "alert"
 
 
 async def test_preflight_schema_drift_posts_alert_and_raises(tmp_path, monkeypatch):
     from qherlock.agent import patrol as patrol_mod
 
     settings = make_settings(tmp_path, monkeypatch, quorum_replica_dsn="postgresql://x",
-                              slack_webhook_url="https://hooks.example/x")
+                              slack_bot_token="xoxb-test", slack_channel_id="C123")
     posts = []
     monkeypatch.setattr(patrol_mod, "slack",
                          types.SimpleNamespace(post=lambda *a, **k: posts.append(a) or {"ok": True}))
@@ -165,7 +165,7 @@ async def test_preflight_schema_drift_posts_alert_and_raises(tmp_path, monkeypat
 
     with pytest.raises(PatrolFatalError, match="schema drift"):
         await patrol_mod.run_patrol(settings, "all")
-    assert posts and posts[0][1] == "alert"
+    assert posts and posts[0][2] == "alert"
     assert closed["v"] is True
 
 
@@ -194,7 +194,7 @@ async def test_run_patrol_stats_include_result_message_fields(tmp_path, monkeypa
 async def test_footer_digest_posted_when_webhook_set(tmp_path, monkeypatch):
     from qherlock.agent import patrol as patrol_mod
 
-    settings = make_settings(tmp_path, monkeypatch, slack_webhook_url="https://hooks.example/x")
+    settings = make_settings(tmp_path, monkeypatch, slack_bot_token="xoxb-test", slack_channel_id="C123")
     posts = []
     monkeypatch.setattr(patrol_mod, "slack",
                          types.SimpleNamespace(post=lambda *a, **k: posts.append(a) or {"ok": False}))
@@ -206,14 +206,14 @@ async def test_footer_digest_posted_when_webhook_set(tmp_path, monkeypatch):
     monkeypatch.setattr(patrol_mod, "ResultMessage", FakeResultMessage)
     result = await patrol_mod.run_patrol(settings, "CA")
     assert result == "report"
-    kinds = [p[1] for p in posts]
+    kinds = [p[2] for p in posts]
     assert "digest" in kinds  # deterministic stats footer, posted even though ok=False
 
 
 async def test_footer_digest_shows_na_when_no_cost(tmp_path, monkeypatch):
     from qherlock.agent import patrol as patrol_mod
 
-    settings = make_settings(tmp_path, monkeypatch, slack_webhook_url="https://hooks.example/x")
+    settings = make_settings(tmp_path, monkeypatch, slack_bot_token="xoxb-test", slack_channel_id="C123")
     posts = []
     monkeypatch.setattr(patrol_mod, "slack",
                          types.SimpleNamespace(post=lambda *a, **k: posts.append(a) or {"ok": True}))
@@ -224,14 +224,14 @@ async def test_footer_digest_shows_na_when_no_cost(tmp_path, monkeypatch):
     monkeypatch.setattr(patrol_mod, "query", fake_query)
     monkeypatch.setattr(patrol_mod, "ResultMessage", FakeResultMessage)
     await patrol_mod.run_patrol(settings, "CA")
-    digest_text = next(p[2] for p in posts if p[1] == "digest")
+    digest_text = next(p[3] for p in posts if p[2] == "digest")
     assert "n/a (subscription)" in digest_text
 
 
 async def test_run_patrol_finishes_row_on_midstream_error_and_posts_alert(tmp_path, monkeypatch):
     from qherlock.agent import patrol as patrol_mod
 
-    settings = make_settings(tmp_path, monkeypatch, slack_webhook_url="https://hooks.example/x")
+    settings = make_settings(tmp_path, monkeypatch, slack_bot_token="xoxb-test", slack_channel_id="C123")
     posts = []
     monkeypatch.setattr(patrol_mod, "slack",
                          types.SimpleNamespace(post=lambda *a, **k: posts.append(a) or {"ok": True}))
@@ -248,7 +248,7 @@ async def test_run_patrol_finishes_row_on_midstream_error_and_posts_alert(tmp_pa
         row = store._conn.execute("SELECT finished_at, stats_json FROM patrols WHERE id = 1").fetchone()
         assert row["finished_at"] is not None
         assert "RuntimeError: transport died" in row["stats_json"]
-    assert posts and posts[0][1] == "alert"
-    assert "Patrol 1 (CA) FAILED" in posts[0][2]
+    assert posts and posts[0][2] == "alert"
+    assert "Patrol 1 (CA) FAILED" in posts[0][3]
     # no deterministic-stats digest footer on a mid-stream failure (no ResultMessage reached the end)
-    assert not any(p[1] == "digest" for p in posts)
+    assert not any(p[2] == "digest" for p in posts)

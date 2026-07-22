@@ -151,10 +151,11 @@ def build_toolkit(settings: Settings, return_handlers: bool = False):
                 conn.close()
         return _text(_bounded(result))
 
-    @tool("post_slack", "Post a digest or alert to the configured Slack webhook. "
+    @tool("post_slack", "Post a digest or alert to the configured Slack channel. "
           "kind: 'digest' or 'alert'.", {"kind": str, "text": str})
     async def post_slack_handler(args: dict) -> dict:
-        result = slack.post(settings.slack_webhook_url, args["kind"], args["text"])
+        result = slack.post(settings.slack_bot_token, settings.slack_channel_id,
+                            args["kind"], args["text"])
         return _text(result)
 
     sdk_tools = [legiscan_sync_handler, diff_handler, list_anomalies_handler,

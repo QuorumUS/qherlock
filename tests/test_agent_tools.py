@@ -21,15 +21,15 @@ def settings_no_dsn(settings):
 
 
 @pytest.fixture
-def settings_no_webhook(settings):
+def settings_no_slack(settings):
     return settings
 
 
 @pytest.fixture
-def settings_with_webhook(tmp_path, monkeypatch):
+def settings_with_slack(tmp_path, monkeypatch):
     monkeypatch.setenv("LEGISCAN_API_KEY", "k")
     return Settings(_env_file=None, data_dir=tmp_path / "data", runs_dir=tmp_path / "runs",
-                     slack_webhook_url="https://hooks.example.com/xyz")
+                     slack_bot_token="xoxb-test", slack_channel_id="C123")
 
 
 def test_tool_names_exact_six():
@@ -235,8 +235,8 @@ async def test_investigate_bill_calls_investigate_with_quota_hook(monkeypatch, s
         assert cache.calls_this_month() == 1
 
 
-async def test_post_slack_bad_kind_and_missing_webhook(settings_no_webhook):
-    _server, handlers = build_toolkit(settings_no_webhook, return_handlers=True)
+async def test_post_slack_bad_kind_and_missing_config(settings_no_slack):
+    _server, handlers = build_toolkit(settings_no_slack, return_handlers=True)
     result = await handlers["post_slack"]({"kind": "meme", "text": "x"})
     payload = json.loads(result["content"][0]["text"])
     assert "digest" in payload["error"]  # error names valid kinds
@@ -246,14 +246,16 @@ async def test_post_slack_bad_kind_and_missing_webhook(settings_no_webhook):
     assert "not configured" in payload2["error"]  # payload, not exception
 
 
-async def test_post_slack_passes_webhook_from_settings(monkeypatch, settings_with_webhook):
+async def test_post_slack_passes_token_and_channel_from_settings(monkeypatch, settings_with_slack):
     seen = {}
     monkeypatch.setattr(
         "qherlock.agent.tools.slack",
-        types.SimpleNamespace(post=lambda url, kind, text: seen.update(url=url) or {"ok": True}),
+        types.SimpleNamespace(post=lambda token, channel, kind, text:
+                              seen.update(token=token, channel=channel) or {"ok": True}),
     )
-    _server, handlers = build_toolkit(settings_with_webhook, return_handlers=True)
+    _server, handlers = build_toolkit(settings_with_slack, return_handlers=True)
     result = await handlers["post_slack"]({"kind": "digest", "text": "hi"})
     payload = json.loads(result["content"][0]["text"])
-    assert seen["url"] == settings_with_webhook.slack_webhook_url
+    assert seen["token"] == "xoxb-test"
+    assert seen["channel"] == "C123"
     assert payload == {"ok": True}

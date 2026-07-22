@@ -82,7 +82,8 @@ async def run_patrol(settings: Settings, scope: str, objective: str = "") -> str
             conn = reader.connect(settings.quorum_replica_dsn)
         except Exception as exc:
             msg = f"replica unreachable: {type(exc).__name__}"
-            slack.post(settings.slack_webhook_url, "alert", f"Patrol aborted — {msg}")
+            slack.post(settings.slack_bot_token, settings.slack_channel_id,
+                       "alert", f"Patrol aborted — {msg}")
             raise PatrolFatalError(msg) from None
         try:
             ok, err = reader.check_schema(conn)
@@ -90,7 +91,8 @@ async def run_patrol(settings: Settings, scope: str, objective: str = "") -> str
             conn.close()
         if not ok:
             msg = f"replica schema drift: {err}"
-            slack.post(settings.slack_webhook_url, "alert", f"Patrol aborted — {msg}")
+            slack.post(settings.slack_bot_token, settings.slack_channel_id,
+                       "alert", f"Patrol aborted — {msg}")
             raise PatrolFatalError(msg)
     # DSN unset: dev flow — log and continue; the diff tool reports its own error payload.
 
@@ -114,7 +116,7 @@ async def run_patrol(settings: Settings, scope: str, objective: str = "") -> str
                         result_text = msg.result or ""
         except Exception as exc:
             error = f"{type(exc).__name__}: {exc}"
-            slack.post(settings.slack_webhook_url, "alert",
+            slack.post(settings.slack_bot_token, settings.slack_channel_id, "alert",
                        f"Patrol {patrol_id} ({scope}) FAILED: {error}")
             raise
         finally:
@@ -143,7 +145,7 @@ async def run_patrol(settings: Settings, scope: str, objective: str = "") -> str
         cost = (f"${result_msg.total_cost_usd:.2f}" if result_msg.total_cost_usd is not None
                 else "n/a (subscription)")
         ls_calls_display = ls_calls if ls_calls is not None else "?"
-        slack.post(settings.slack_webhook_url, "digest",
+        slack.post(settings.slack_bot_token, settings.slack_channel_id, "digest",
                    f"Patrol {patrol_id} ({scope}) done: {result_msg.num_turns} turns, "
                    f"{(result_msg.duration_ms or 0) // 60000}m, cost {cost}, "
                    f"LegiScan {ls_calls_display}/{settings.legiscan_monthly_budget} this month.")
