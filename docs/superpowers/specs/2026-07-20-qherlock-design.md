@@ -94,7 +94,7 @@ in the case DB, retrievable by ID. No tool output may exceed ~2k tokens.
 | `trigger_rescrape(region, session, bill_numbers?)` | Fix leg 1 | Teleport exec of the appropriate scoped `manage.py scrape` invocation (actacollecta replay path for those states). Refuses if kill switch or caps. Returns command, exit code, log tail. |
 | `run_fix_template(template_id, params, anomaly_id)` | Fix leg 2 | Allowlisted template IDs only. Renders Jinja→Python, executes via `manage.py shell` (stdin over `tsh ssh`), wrapped in `transaction.atomic()`; snapshots before-values to case DB; verifies in-script; JSON result markers parsed. Honors dry-run (`QHERLOCK_LIVE=0` ⇒ always dry-run), kill switch, per-cycle/per-state caps. |
 | `verify_fix(anomaly_id)` | Post-action check | Re-reads replica + LegiScan; sets anomaly `verified`/`regressed`. Failure ⇒ compensating rollback from snapshots + alert. |
-| `post_slack(kind, payload)` | Digest or alert to `#quentin-bot` | Via webhook. Failures are logged, never fatal. Message ≤ ~3500 chars; overflow summarized with case-file pointers. |
+| `post_slack(kind, payload)` | Digest or alert to `#quentin-bot` | Via bot token (superseded 2026-07-21, see 2026-07-21-slack-token-design.md). Failures are logged, never fatal. Message ≤ ~3500 chars; overflow summarized with case-file pointers. |
 
 ## 6. LegiScan collector (inside `legiscan_sync`)
 
@@ -248,7 +248,7 @@ used with no configuration at all; for headless hosts set `CLAUDE_CODE_OAUTH_TOK
 when both are set. This matches QuorumUS/virgil's auth (subscription OAuth, no API-key billing).
 
 Env (`.env`): `LEGISCAN_API_KEY` (present), `CLAUDE_CODE_OAUTH_TOKEN` (headless only; see auth
-above), `ANTHROPIC_API_KEY` (optional fallback), `SLACK_WEBHOOK_URL`,
+above), `ANTHROPIC_API_KEY` (optional fallback), `SLACK_BOT_TOKEN` + `SLACK_CHANNEL_ID` (superseded 2026-07-21),
 `QUORUM_REPLICA_DSN`, `QHERLOCK_MODEL=claude-sonnet-5`, `QHERLOCK_LIVE=0`,
 `QHERLOCK_KILL_SWITCH=0`, `QHERLOCK_MAX_FIXES_PER_CYCLE=25`, `QHERLOCK_MAX_FIXES_PER_STATE=10`,
 `QHERLOCK_FRESHNESS_SLA_HOURS=72`, `QHERLOCK_MAX_TURNS=100`. Teleport via standard `tsh login`

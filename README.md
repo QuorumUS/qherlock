@@ -32,7 +32,9 @@ Qherlock earns autonomy in stages — same code, one switch:
     launchctl kickstart -k gui/$(id -u)/us.quorum.qherlock    # smoke-run now
     # unload after edits: launchctl bootout gui/$(id -u)/us.quorum.qherlock
 
-Prereqs: `.env` must have `SLACK_WEBHOOK_URL` and `QUORUM_REPLICA_DSN`, and the
+Prereqs: `.env` must have `SLACK_BOT_TOKEN` and `SLACK_CHANNEL_ID` (the bot
+must be `/invite`d into #quentin-bot; `SLACK_APP_TOKEN` is unused) and
+`QUORUM_REPLICA_DSN`, and the
 `tsh proxy db` tunnel must be up (a dead tunnel produces a Slack alert + exit 2 —
 that is the intended failure mode; the daily digest doubles as the liveness
 heartbeat). Before the first scheduled run, pre-warm the cache once:
