@@ -35,6 +35,19 @@ def diff_region(region: str, cache: LegiScanCache, casefile: CaseFileStore,
     ignored = 0
     cases: list[dict] = []
 
+    # Lazy per-Quorum-session cache: bills + bill counts fetched at most once
+    # per session id, whether it's the primary matched session or a sibling
+    # special session consulted for CA extraordinary-session (ABX) bills.
+    session_data: dict[int, tuple[list, dict]] = {}
+
+    def get_session_data(sid: int):
+        cached = session_data.get(sid)
+        if cached is None:
+            cached = (reader.get_bills_for_session(replica_conn, sid),
+                      reader.get_bill_counts_for_session(replica_conn, sid))
+            session_data[sid] = cached
+        return cached
+
     def record(anomaly: Anomaly, title: str = ""):
         kind, aid = casefile.upsert_anomaly(anomaly)
         bucket = counts.setdefault(anomaly.gap_type, {"new": 0, "recurring": 0})
@@ -46,8 +59,7 @@ def diff_region(region: str, cache: LegiScanCache, casefile: CaseFileStore,
 
     for ls, qs in matched:
         session_key = str(ls["session_id"])
-        q_bills = reader.get_bills_for_session(replica_conn, qs.id)
-        q_counts = reader.get_bill_counts_for_session(replica_conn, qs.id)
+        q_bills, q_counts = get_session_data(qs.id)
         q_by_norm: dict[str, reader.BillRow] = {}
         for b in q_bills:
             norm = quorum_number_norm(b.label, b.number, b.bill_type, state=region)
@@ -61,20 +73,41 @@ def diff_region(region: str, cache: LegiScanCache, casefile: CaseFileStore,
                 continue
             q_by_norm[norm] = b
 
+        sib_by_norm_cache: dict[int, dict[str, reader.BillRow]] = {}
+
+        def get_sibling_norm_index(sid: int) -> dict[str, reader.BillRow]:
+            idx = sib_by_norm_cache.get(sid)
+            if idx is None:
+                sib_bills, _ = get_session_data(sid)
+                idx = {}
+                for sb in sib_bills:
+                    snorm = quorum_number_norm(sb.label, sb.number, sb.bill_type,
+                                               state=region)
+                    if not snorm:
+                        continue
+                    if snorm in idx:
+                        warnings.append(
+                            f"{region} sibling session {sid}: bill-number collision on "
+                            f"{snorm!r} (labels {idx[snorm].label!r} and {sb.label!r}) "
+                            "— kept first"
+                        )
+                        continue
+                    idx[snorm] = sb
+                sib_by_norm_cache[sid] = idx
+            return idx
+
         for bill in cache.bills_for_session(ls["session_id"]):
             norm = legiscan_number_norm(region, bill["number"])
             if not norm:
                 continue
             q_bill = q_by_norm.get(norm)
+            q_bill_counts = q_counts
             if q_bill is None and is_extraordinary_number(region, bill["number"]):
                 for sib in siblings_by_year.get(qs.start_year, []):
-                    sib_bills = reader.get_bills_for_session(replica_conn, sib.id)
-                    for sb in sib_bills:
-                        if quorum_number_norm(sb.label, sb.number, sb.bill_type,
-                                              state=region) == norm:
-                            q_bill = sb
-                            break
-                    if q_bill is not None:
+                    sb = get_sibling_norm_index(sib.id).get(norm)
+                    if sb is not None:
+                        q_bill = sb
+                        q_bill_counts = get_session_data(sib.id)[1]
                         break
             if q_bill is None:
                 payload = cache.get_bill_payload(bill["bill_id"]) or {}
@@ -99,7 +132,7 @@ def diff_region(region: str, cache: LegiScanCache, casefile: CaseFileStore,
             else:
                 for anomaly in detect_bill_anomalies(
                         region, session_key, norm, bill, q_bill,
-                        q_counts.get(q_bill.id, reader.BillCounts()),
+                        q_bill_counts.get(q_bill.id, reader.BillCounts()),
                         sla_hours=sla_hours, today=today):
                     record(anomaly)
 
