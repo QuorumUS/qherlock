@@ -271,7 +271,15 @@ executor tested through a fake `tsh` shim + dry-run — tests never touch prod. 
 - **M1 — Shadow patrols:** all 50 states + federal, all four detectors, `investigate_bill`,
   `post_slack` → daily digests in `#quentin-bot` via launchd.
 - **M2 — Doctrine:** FP taxonomy + severity rubric tuned against an eval set; transcripts
-  persisted; digest quality pass.
+  persisted; digest quality pass. Split 2026-07-22 into M2a (detection-correctness fixes +
+  eval fixtures, see 2026-07-22-m2a-detection-fixes-design.md) and M2b (doctrine/taxonomy on
+  the quieter baseline).
+- **M2.5 — Slack surface unification (added 2026-07-22, lands after M2):** adopt
+  actacollecta's unified posting surface (Nei's threads CLI — he started on it 2026-07-22
+  after seeing the first live digest); dedicated Qherlock bot token/identity (today Qherlock
+  posts with Quentin's own token into #agent-as-a-service, so it cannot meaningfully tag
+  Quentin); mention Quentin (`<@U0B9R2CKB8B>`) in digests as the handoff hook once the
+  identities are separate. Blocks on Nei's unification work.
 - **M3 — Hands, dry-run:** `trigger_rescrape` + `run_fix_template` + `verify_fix` in permanent
   dry-run; Qherlock narrates intended actions.
 - **M4 — Hands, live:** `QHERLOCK_LIVE=1` with caps armed; re-ingestion leg first, then T1/T2
