@@ -25,8 +25,17 @@ def test_ny_amendment_family_all_match():
 
 def test_ny_genuine_missing_has_no_quorum_side():
     fx = _load("ny_amendment.json")
-    # The one real gap has no Quorum row -> nothing to match against (still missing).
-    assert fx["genuine_missing"]["quorum_label"] is None
+    # Mirror qherlock/diff/service.py's index build: normalize every Quorum-side
+    # pair into the same q_by_norm keyspace used for matching.
+    q_by_norm = {
+        quorum_number_norm(p["quorum_label"], p["quorum_number"], p["quorum_bill_type"],
+                            state=fx["state"])
+        for p in fx["pairs"]
+    }
+    ls_norm = legiscan_number_norm(fx["state"], fx["genuine_missing"]["legiscan_number"])
+    # The planted genuine gap (A33878) must not collide with any amendment-suffix
+    # pair after normalization -> it would genuinely be reported missing.
+    assert ls_norm not in q_by_norm
 
 
 def _qbill(status):
