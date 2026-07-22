@@ -104,7 +104,7 @@ def investigate(state: str, session_id: int, number: str, client, cache: LegiSca
         quorum_session_id = pair.id
         q_bills = reader.get_bills_for_session(replica_conn, pair.id)
         q_bill = next((b for b in q_bills
-                       if quorum_number_norm(b.label, b.number, b.bill_type) == number_norm), None)
+                       if quorum_number_norm(b.label, b.number, b.bill_type, state=state) == number_norm), None)
         if q_bill is None:
             notes.append(f"bill {number_norm} not found in Quorum replica (session {pair.id})")
         else:

@@ -180,3 +180,40 @@ def test_stub_only_cache_with_quota_exhausted_never_raises(cache, replica):
     assert result["legiscan"]["number"] == "AB1"
     assert result["legiscan"]["status"] is None
     assert result["legiscan"]["recent_actions"] == []
+
+
+def test_amended_ny_bill_found_with_state_param(tmp_path):
+    """NY amended bill S.115A (bill_type 2, number 115) should match LegiScan
+    base number S115 when state=NY is passed to quorum_number_norm, stripping
+    the amendment suffix A."""
+    # Set up LegiScan cache with NY session and bill S115
+    with LegiScanCache(tmp_path / "cache.db") as cache:
+        cache.upsert_session("NY", {"session_id": 10, "year_start": 2025, "year_end": 2026,
+                                    "special": 0, "session_name": "2025 Regular Session"})
+        cache.upsert_bill_stub(10, 2, "S115", "hash-s115")
+
+        # Set up Quorum replica with matching NY session containing amended bill S.115A
+        replica = sqlite3.connect(":memory:")
+        replica.executescript(_REPLICA_SCHEMA)
+        replica.execute(
+            "INSERT INTO app_legsession VALUES (51, 'ny', 't', 's', 2025, TRUE, TRUE)"
+        )
+        # bill_type 2 for Senate bill, number 115, label S.115A (amended)
+        replica.execute(
+            "INSERT INTO bill_bill (id, session_id, label, number, bill_type, "
+            "current_general_status, current_status_date, most_recent_action_date, "
+            "introduced_date, missing_data, last_quorum_update, source) "
+            "VALUES (2, 51, 'S.115A', '115', 2, 1, '2026-07-01', '2026-07-01', "
+            "'2025-01-01', 0, '2026-07-01', 'test')"
+        )
+        replica.commit()
+
+        fake_client = FakeClient(payload=_payload(bill_id=2))
+
+        result = investigate("NY", 10, "S115", fake_client, cache, replica)
+
+        # The amended bill S.115A should be found when normalized with state=NY
+        assert result["quorum"] is not None, "quorum should be populated"
+        assert result["quorum"]["bill_id"] == 2
+        assert result["quorum"]["label"] == "S.115A"
+        assert "not found" not in str(result["notes"]).lower()
