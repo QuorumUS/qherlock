@@ -34,11 +34,6 @@ BILL_TYPE_PREFIX: dict[int, str] = {
 AMENDMENT_SUFFIX_STATES: frozenset[str] = frozenset({"NY"})
 _SUFFIX_RE = re.compile(r"^([A-Z]+\d+)([A-Z])$")
 
-# States where LegiScan folds extraordinary-session bills into the biennium
-# dataset while Quorum keeps a separate special session. Marker: a letter
-# prefix ending in 'X' (ABX/SBX) before the number.
-EXTRAORDINARY_SESSION_STATES: frozenset[str] = frozenset({"CA"})
-
 _CLEAN_RE = re.compile(r"[\s. ]")
 _NUM_RE = re.compile(r"^([A-Z]+)0*(\d+)$")
 
@@ -51,16 +46,6 @@ def normalize_bill_number(raw: str | int | None) -> str:
     if not m:
         return s
     return f"{m.group(1)}{m.group(2)}"
-
-
-def is_extraordinary_number(state: str, raw_number: str | int | None) -> bool:
-    """True when the raw LegiScan number marks an extraordinary-session bill
-    (CA ABX1.../SBX2...). Uses the pure-normalized form; no prefix translation."""
-    if state.upper() not in EXTRAORDINARY_SESSION_STATES:
-        return False
-    norm = normalize_bill_number(raw_number)
-    m = _NUM_RE.match(norm)
-    return bool(m) and m.group(1).endswith("X")
 
 
 def legiscan_number_norm(state: str, raw: str | int | None) -> str:

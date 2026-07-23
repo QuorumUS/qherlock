@@ -3,7 +3,7 @@ from datetime import date
 from pathlib import Path
 
 from qherlock.diff.detectors import detect_bill_anomalies
-from qherlock.diff.matchers import (is_deliberately_unimported, is_extraordinary_number,
+from qherlock.diff.matchers import (is_deliberately_unimported,
                                     legiscan_number_norm, quorum_number_norm)
 from qherlock.quorum.reader import BillCounts, BillRow
 
@@ -75,11 +75,3 @@ def test_ma_orders_suppressed_and_genuine_flagged():
         assert is_deliberately_unimported(fx["state"], t), t
     for t in fx["still_flagged_titles"]:
         assert not is_deliberately_unimported(fx["state"], t), t
-
-
-def test_ca_abx_detected_regular_not():
-    fx = _load("ca_abx.json")
-    for n in fx["extraordinary_numbers"]:
-        assert is_extraordinary_number(fx["state"], n), n
-    for n in fx["regular_numbers"]:
-        assert not is_extraordinary_number(fx["state"], n), n
