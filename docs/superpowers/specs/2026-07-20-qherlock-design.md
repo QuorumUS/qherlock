@@ -274,13 +274,17 @@ executor tested through a fake `tsh` shim + dry-run — tests never touch prod. 
   persisted; digest quality pass. Split 2026-07-22 into M2a (detection-correctness fixes +
   eval fixtures, see 2026-07-22-m2a-detection-fixes-design.md) and M2b (doctrine/taxonomy on
   the quieter baseline). **M2a SHIPPED** (NY/WI/MA/auto-retirement/digest/evals — live-verified
-  4,342→~795 anomalies, −82%). **M2b carries:** (a) CA extraordinary-session redo — LegiScan
-  puts the session in the number (`ABX1 1`), Quorum puts it in the session NAME with a base
-  number (`A.B.1`); match by parsing the X-ordinal + sibling-session-by-name + base number.
-  (b) OH `HR` resolutions — LegiScan passed vs Quorum introduced (rank 1); decide genuine vs
-  distinct-FP (doctrine). (c) FP taxonomy/classification schema; 45 unmapped 2026 sessions;
-  429 Retry-After on footer; mrkdwn escaping; batched `retire_resolved` UPDATE; migration test;
-  eval-fixture breadth backfill from live data.
+  4,342→~795 anomalies, −82%). **M2b part 1 SHIPPED** (2026-07-23,
+  see 2026-07-23-m2b-ca-extraordinary-sessions-design.md): (a) CA extraordinary-session
+  matching — LegiScan fuses the session into the number (`ABX11`), Quorum keeps the base
+  number (`A.B.1`) in a separate `current=FALSE` special session; fixed by parsing the
+  X-ordinal + selecting the sibling session by biennium/name + base-number lookup there
+  (all 20 X1 FPs retired live, 0 residual). (b) OH `HR` resolutions — investigated, confirmed
+  a **genuine** Quorum scraping gap (consent-calendar "Adopted: Rules and Reference" not
+  captured), detector correct, no code change. **M2b still carries:** CA `ACR` wrong_data
+  (Engrossed-vs-committee, mixed genuine/FP → doctrine); FP taxonomy/classification schema;
+  45 unmapped 2026 sessions; 429 Retry-After on footer; mrkdwn escaping; batched
+  `retire_resolved` UPDATE; migration test; eval-fixture breadth backfill from live data.
 - **M2.5 — Slack surface unification (added 2026-07-22, lands after M2):** adopt
   actacollecta's unified posting surface (Nei's threads CLI — he started on it 2026-07-22
   after seeing the first live digest); dedicated Qherlock bot token/identity (today Qherlock

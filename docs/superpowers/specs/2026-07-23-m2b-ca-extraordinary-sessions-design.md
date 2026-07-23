@@ -1,7 +1,13 @@
 # M2b (part 1) — CA extraordinary-session matching + OH resolution conclusion
 
 **Date:** 2026-07-23
-**Status:** DESIGN
+**Status:** SHIPPED (2026-07-23, on `main`, commits `88af49a`..`127ca57`). Live-accepted
+via `diff --scope CA`: all 20 CA X1 `missing_bill` FPs matched their non-current sibling
+session 3736 and auto-retired (0 X-family new); the 29 ACR `wrong_data` and 1 `SB574`
+`stale` were left untouched as designed; no `incomplete_fields` FPs. OH: no code (confirmed
+genuine scraping gap). 168 tests green offline. A final-review-caught latent fingerprint
+collision (extraordinary anomaly keyed on base vs the same-session ordinal bill) was fixed
+pre-merge (`127ca57`): extraordinary anomalies are keyed on the fused LegiScan number.
 **Parent:** M2b in `2026-07-20-qherlock-design.md` §15 and `2026-07-22-m2a-detection-fixes-design.md`
 ("Live acceptance outcome"). M2b is a basket of independent pieces; this spec is
 the first slice — the deferred **detection-correctness** work (CA + OH). Doctrine/
