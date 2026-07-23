@@ -32,6 +32,12 @@ BILL_TYPE_PREFIX: dict[int, str] = {
 # while LegiScan reports the base number (S115). Strip the trailing letter so the
 # two sides match. Prefix-preserving: only a single trailing [A-Z] is removed.
 AMENDMENT_SUFFIX_STATES: frozenset[str] = frozenset({"NY"})
+
+# States where LegiScan fuses the extraordinary-session marker into the bill
+# number (CA: 'ABX110' = Assembly Bill, extraordinary session X1, bill 10) while
+# Quorum keeps the base number in a separate, often non-current, special session.
+EXTRAORDINARY_SESSION_STATES: frozenset[str] = frozenset({"CA"})
+
 _SUFFIX_RE = re.compile(r"^([A-Z]+\d+)([A-Z])$")
 
 _CLEAN_RE = re.compile(r"[\s. ]")
@@ -57,6 +63,21 @@ def legiscan_number_norm(state: str, raw: str | int | None) -> str:
     prefix, num = m.group(1), m.group(2)
     prefix = PREFIX_MAP.get(state.upper(), {}).get(prefix, prefix)
     return f"{prefix}{num}"
+
+
+def parse_extraordinary_number(raw_number, ordinals) -> list[tuple[int, str]]:
+    """For a LegiScan number that fuses the extraordinary-session marker into the
+    number, return every (ordinal, base_norm) candidate for the given ordinals
+    (e.g. 'ABX110' with ordinals {1} -> [(1, 'AB10')]). Empty when the number
+    carries no recognized marker. Returning all candidates (not one) lets the
+    caller disambiguate by which base actually exists in that ordinal's session."""
+    norm = normalize_bill_number(raw_number)
+    out: list[tuple[int, str]] = []
+    for o in ordinals:
+        m = re.match(rf"^([A-Z]+)X{o}(\d+)$", norm)
+        if m:
+            out.append((o, f"{m.group(1)}{int(m.group(2))}"))
+    return out
 
 
 def quorum_number_norm(label: str | None, number, bill_type: int | None = None,

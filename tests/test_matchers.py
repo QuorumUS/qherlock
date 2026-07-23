@@ -1,6 +1,6 @@
 from qherlock.diff.matchers import (
     is_deliberately_unimported, legiscan_number_norm, normalize_bill_number,
-    match_sessions, quorum_number_norm,
+    match_sessions, quorum_number_norm, parse_extraordinary_number,
 )
 from qherlock.quorum.reader import SessionRow
 
@@ -103,3 +103,24 @@ def test_ma_non_extension_orders_still_flagged():
     assert not is_deliberately_unimported("MA", "Resolutions responding to the SJC order of May 7")
     # Other states unaffected:
     assert not is_deliberately_unimported("CA", "Some Extension Order")
+
+
+def test_parse_extraordinary_number_basic():
+    # CA fuses the session marker into the number: ABX11 = Assembly Bill, X1, bill 1.
+    assert parse_extraordinary_number("ABX11", {1}) == [(1, "AB1")]
+    assert parse_extraordinary_number("ABX110", {1}) == [(1, "AB10")]
+    assert parse_extraordinary_number("SBX14", {1}) == [(1, "SB4")]
+    assert parse_extraordinary_number("ACAX11", {1}) == [(1, "ACA1")]
+
+
+def test_parse_extraordinary_number_no_marker_or_no_ordinal():
+    assert parse_extraordinary_number("AB1", {1}) == []      # plain number, no marker
+    assert parse_extraordinary_number("ABX11", set()) == []  # no known ordinals
+    assert parse_extraordinary_number(None, {1}) == []
+
+
+def test_parse_extraordinary_number_ambiguous_returns_all_candidates():
+    # ordinals {1, 11} both parse 'ABX110'; the caller disambiguates by which
+    # base actually exists in that ordinal's session (Task 4).
+    got = parse_extraordinary_number("ABX110", {1, 11})
+    assert (1, "AB10") in got and (11, "AB0") in got
