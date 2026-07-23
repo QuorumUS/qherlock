@@ -3,8 +3,10 @@ from datetime import datetime, timezone
 from qherlock.casefiles.models import Anomaly
 from qherlock.casefiles.store import CaseFileStore
 from qherlock.diff.detectors import _as_date, compute_severity, detect_bill_anomalies
-from qherlock.diff.matchers import (is_deliberately_unimported,
-                                    legiscan_number_norm, match_sessions, quorum_number_norm)
+from qherlock.diff.matchers import (EXTRAORDINARY_SESSION_STATES,
+                                    is_deliberately_unimported, legiscan_number_norm,
+                                    match_sessions, parse_extraordinary_number,
+                                    quorum_number_norm, select_sibling_special_sessions)
 from qherlock.legiscan.cache import LegiScanCache
 from qherlock.quorum import reader
 
@@ -14,6 +16,24 @@ ROLLUP_REGION_ROWS = 30
 WARNINGS_SAMPLE = 10
 ERROR_MSG_CAP = 120
 ERRORS_MAX_ENTRIES = 10
+
+
+def _index_quorum_bills(q_bills, region, warnings, warn_label):
+    """Build {normalized_number: BillRow}. On a same-key collision keep the first
+    and record an observable warning — a silent merge would fabricate missing-bill
+    FPs (spec §1 collision guard)."""
+    by_norm = {}
+    for b in q_bills:
+        norm = quorum_number_norm(b.label, b.number, b.bill_type, state=region)
+        if not norm:
+            continue
+        if norm in by_norm:
+            warnings.append(
+                f"{warn_label}: bill-number collision on {norm!r} "
+                f"(labels {by_norm[norm].label!r} and {b.label!r}) — kept first")
+            continue
+        by_norm[norm] = b
+    return by_norm
 
 
 def diff_region(region: str, cache: LegiScanCache, casefile: CaseFileStore,
@@ -52,25 +72,46 @@ def diff_region(region: str, cache: LegiScanCache, casefile: CaseFileStore,
             processed_sessions.add(session_key)
         q_bills = reader.get_bills_for_session(replica_conn, qs.id)
         q_counts = reader.get_bill_counts_for_session(replica_conn, qs.id)
-        q_by_norm: dict[str, reader.BillRow] = {}
-        for b in q_bills:
-            norm = quorum_number_norm(b.label, b.number, b.bill_type, state=region)
-            if not norm:
-                continue
-            if norm in q_by_norm:
-                warnings.append(
-                    f"{region} session {session_key}: bill-number collision on {norm!r} "
-                    f"(labels {q_by_norm[norm].label!r} and {b.label!r}) — kept first"
-                )
-                continue
-            q_by_norm[norm] = b
+        q_by_norm = _index_quorum_bills(q_bills, region, warnings,
+                                        f"{region} session {session_key}")
+
+        # CA folds extraordinary-session bills into the regular session as fused
+        # numbers; their Quorum home is a separate, often non-current, special
+        # session. Load those siblings so the fused bills match instead of being
+        # reported missing. State-gated; every other region skips this entirely.
+        siblings: dict[int, tuple[dict, dict, int]] = {}
+        if region.upper() in EXTRAORDINARY_SESSION_STATES:
+            specials = reader.get_special_sessions(replica_conn, region)
+            for ordinal, sib in select_sibling_special_sessions(qs, specials).items():
+                sib_map = _index_quorum_bills(
+                    reader.get_bills_for_session(replica_conn, sib.id), region,
+                    warnings, f"{region} sibling session {sib.id}")
+                sib_counts = reader.get_bill_counts_for_session(replica_conn, sib.id)
+                siblings[ordinal] = (sib_map, sib_counts, sib.id)
 
         for bill in ls_bills:
             norm = legiscan_number_norm(region, bill["number"])
             if not norm:
                 continue
-            q_bill = q_by_norm.get(norm)
+
+            # Extraordinary-session bills (state-gated) resolve against a sibling
+            # session's base number; the first candidate whose base exists wins.
+            q_bill = None
             q_bill_counts = q_counts
+            match_norm = norm
+            sibling_session_id = None
+            if siblings:
+                for ordinal, base in parse_extraordinary_number(bill["number"], siblings.keys()):
+                    sib_map, sib_counts, sib_id = siblings[ordinal]
+                    if base in sib_map:
+                        q_bill, q_bill_counts, match_norm, sibling_session_id = (
+                            sib_map[base], sib_counts, base, sib_id)
+                        break
+
+            if q_bill is None:
+                q_bill = q_by_norm.get(norm)
+                q_bill_counts = q_counts
+
             if q_bill is None:
                 payload = cache.get_bill_payload(bill["bill_id"]) or {}
                 title = (payload.get("title") or "").strip()
@@ -93,9 +134,11 @@ def diff_region(region: str, cache: LegiScanCache, casefile: CaseFileStore,
                 ), title)
             else:
                 for anomaly in detect_bill_anomalies(
-                        region, session_key, norm, bill, q_bill,
+                        region, session_key, match_norm, bill, q_bill,
                         q_bill_counts.get(q_bill.id, reader.BillCounts()),
                         sla_hours=sla_hours, today=today):
+                    if sibling_session_id is not None:
+                        anomaly.evidence.setdefault("quorum_session_id", sibling_session_id)
                     record(anomaly)
 
     resolved = casefile.retire_resolved(region, processed_sessions, live_fingerprints)

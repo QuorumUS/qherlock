@@ -365,6 +365,58 @@ def test_empty_cache_session_does_not_retire_anomalies(tmp_path):
             assert stored["status"] == "new"
 
 
+def test_ca_extraordinary_bills_match_sibling_session_and_retire_fp(tmp_path):
+    # LegiScan folds X1 bills into the regular session as fused numbers
+    # (ABX11 = Assembly Bill, session X1, bill 1). Quorum stores the base label
+    # (A.B.1) in a SEPARATE special session that is current=FALSE. The X1 bill must
+    # match there (not be reported missing), a prior missing FP for it must retire,
+    # and a genuinely-absent X1 bill must still be reported missing.
+    from qherlock.casefiles.models import Anomaly
+
+    with LegiScanCache(tmp_path / "cache.db") as cache:
+        cache.upsert_session("CA", {"session_id": 2172, "year_start": 2025, "year_end": 2026,
+                                    "special": 0, "session_name": "2025-2026 Regular Session"})
+        # title is required here: the BILL fixture has no default title, and an
+        # empty title hits the masterlist-stub salvage (ignored, never flagged
+        # missing) regardless of sibling matching — which would mask this test.
+        x1_bill = dict(BILL, bill_id=811, bill_number="ABX11", status=4,
+                       title="An extraordinary session act", status_date="2026-06-01",
+                       history=[{"date": "2026-06-10"}],
+                       sponsors=[{"people_id": 1}], texts=[], votes=[])
+        gone = dict(BILL, bill_id=812, bill_number="ABX199", title="A missing X1 act",
+                    status=1, history=[{"date": "2026-06-10"}], sponsors=[], texts=[], votes=[])
+        cache.ingest_dataset_zip(2172, make_dataset_zip([x1_bill, gone]))
+
+        replica = _new_replica()
+        replica.executescript(
+            """
+            INSERT INTO app_legsession VALUES
+                (3570, 'ca', '2025-2026', '2025-2026', 2025, TRUE, TRUE),
+                (3736, 'ca', '2025 Spec Session 1 - X1', '2025 Spec Session 1 - X1',
+                 2025, FALSE, FALSE);
+            INSERT INTO bill_bill (id, session_id, label, number, current_general_status,
+                most_recent_action_date) VALUES (1, 3736, 'A.B.1', '1', 6, '2026-06-10');
+            INSERT INTO bill_billaction (bill_id, date, action_type) VALUES (1, '2026-06-10', 1);
+            INSERT INTO bill_sponsor (bill_id, sponsor_type) VALUES (1, 1);
+            """
+        )
+        with CaseFileStore(tmp_path / "casefile.db") as casefile:
+            prior_fp = Anomaly(gap_type="missing_bill", region="CA", session_key="2172",
+                               bill_number_norm="ABX11")
+            casefile.upsert_anomaly(prior_fp)
+
+            summary = diff_region("CA", cache, casefile, replica, today=date(2026, 7, 21))
+
+            # ABX11 matched A.B.1 in the sibling session (LS passed=4 vs Quorum
+            # enacted rank 6 -> clean); only the genuinely-absent ABX199 is missing.
+            assert summary["counts_by_gap_type"]["missing_bill"]["new"] == 1
+            assert casefile.list_anomalies(gap_type="missing_bill", status="new")[0][
+                "bill_number_norm"] == "ABX199"
+            # The prior FP for the now-matched ABX11 auto-retired.
+            assert casefile.get_anomaly_by_fingerprint(prior_fp.fingerprint)["status"] == "resolved"
+            assert summary["anomalies_resolved"] >= 1
+
+
 def test_diff_region_reports_resolved_count(tmp_path, cache, replica):
     from qherlock.casefiles.models import Anomaly
     ghost = Anomaly(gap_type="wrong_data", region="CA", session_key="2172",
