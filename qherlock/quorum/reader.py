@@ -18,6 +18,12 @@ FROM app_legsession
 WHERE LOWER(region_abbrev) = LOWER({ph}) AND current = TRUE
 """
 
+_SPECIAL_SESSIONS_SQL = """
+SELECT id, region_abbrev, title, session_name, start_year, current, regular_session
+FROM app_legsession
+WHERE LOWER(region_abbrev) = LOWER({ph}) AND regular_session = FALSE
+"""
+
 _BILLS_SQL = """
 SELECT id, label, number, bill_type, current_general_status,
        current_status_date, most_recent_action_date, introduced_date,
@@ -109,6 +115,15 @@ def _execute(conn, sql: str, params: tuple = ()):
 
 def get_current_sessions(conn, state: str) -> list[SessionRow]:
     cur = _execute(conn, _SESSIONS_SQL, (state,))
+    return [SessionRow(r[0], r[1], r[2], r[3], r[4], bool(r[5]), bool(r[6]))
+            for r in cur.fetchall()]
+
+
+def get_special_sessions(conn, region: str) -> list[SessionRow]:
+    """Extraordinary/special sessions for a region, regardless of `current`.
+    A concluded special session is current=FALSE, but its bills are still the
+    live copy LegiScan diffs against (see the CA X1 family). Read-only."""
+    cur = _execute(conn, _SPECIAL_SESSIONS_SQL, (region,))
     return [SessionRow(r[0], r[1], r[2], r[3], r[4], bool(r[5]), bool(r[6]))
             for r in cur.fetchall()]
 

@@ -130,3 +130,20 @@ def test_federal_sessions_match_us(replica_factory):
     conn = replica_factory()
     conn.execute("INSERT INTO app_legsession VALUES (5,'us','119th Congress','119',2025,1,1)")
     assert reader.get_current_sessions(conn, "US")[0].id == 5
+
+
+def test_get_special_sessions_includes_non_current(replica_factory):
+    conn = replica_factory()
+    conn.executescript(
+        """
+        INSERT INTO app_legsession VALUES
+            (3570, 'ca', '2025-2026', '2025-2026', 2025, TRUE, TRUE),
+            (3736, 'ca', '2025 Spec Session 1 - X1', '2025 Spec Session 1 - X1', 2025, FALSE, FALSE),
+            (3665, 'ca', '2024 Spec Session 1 - X1', '2024 Spec Session 1 - X1', 2024, FALSE, FALSE);
+        """
+    )
+    specials = reader.get_special_sessions(conn, "CA")
+    ids = {s.id for s in specials}
+    assert ids == {3736, 3665}                       # both special sessions, regardless of current
+    assert all(s.regular_session is False for s in specials)
+    assert 3570 not in ids                            # the regular session is excluded
