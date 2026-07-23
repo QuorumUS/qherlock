@@ -46,8 +46,8 @@ not import):
 | Fix path | Fallback chain: re-ingestion → ORM template script → rollback + alert | Every action logged |
 | Fix channel | Teleport/SSH exec running `manage.py` on a prod node | |
 | Slack | Everything → `#quentin-bot` (exists) | Escalation to team channels deferred. Channel changed from `#sherlock-bot` 2026-07-21 (Victor) — report into Quentin's channel per the actacollecta graduation direction |
-| **Name** | **Querlock** (Sherlock→Qherlock 2026-07-21; Qherlock→Querlock 2026-07-23; Victor) | Q for Quorum. Repo, package, CLI, env prefix (`QUERLOCK_*`), MCP tool prefix (`mcp__querlock__*`), and launchd label all renamed |
-| Home | Standalone repo `~/Projects/querlock` | In-repo module is dead; this is the restart |
+| **Name** | **Querlock** (Sherlock→Qherlock 2026-07-21; Qherlock→Querlock 2026-07-23; Victor) | Q for Quorum. Package, CLI, env prefix (`QUERLOCK_*`), MCP tool prefix (`mcp__querlock__*`), and launchd label (`us.quorum.querlock`) track the product name. The **repo dir + GitHub remote stayed `qherlock`** in the 2026-07-23 rename (the earlier Sherlock→Qherlock rename had renamed them) |
+| Home | Standalone repo `~/Projects/qherlock` (checkout dir + remote kept the `qherlock` name) | In-repo module is dead; this is the restart |
 | LegiScan tier | Free (30k queries/month) | Bulk `getDataset` strategy mandatory |
 | First runtime | cron/launchd on Victor's laptop | Containerize later |
 | **Architecture** | **B — full agentic patroller** | Victor chose B over recommended A, accepting run-to-run variance and token cost. Mitigations: deterministic bulk tools, bounded tool outputs, persisted patrol transcripts, tool-level guardrails. |
