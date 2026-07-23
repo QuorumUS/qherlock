@@ -1,8 +1,16 @@
 # M2a — Detection-correctness fixes + eval fixtures
 
 **Date:** 2026-07-22
-**Status:** approved (Victor, 2026-07-22; approach "targeted code fixes", no declarative rules layer)
-**Parent:** M2 in `2026-07-20-qherlock-design.md` §15, split 2026-07-22 into M2a (this spec) and M2b (doctrine/taxonomy, separate spec later).
+**Status:** SHIPPED (2026-07-22, on `main`) for NY / WI / MA / auto-retirement / digest / evals. CA (§4) and OH (part of §2) deferred to M2b after live acceptance disproved the spec's assumptions about their data shapes — see "Live acceptance outcome" below.
+**Parent:** M2 in `2026-07-20-qherlock-design.md` §15, split 2026-07-22 into M2a (this spec) and M2b (doctrine/taxonomy + CA/OH redo, separate spec later).
+
+## Live acceptance outcome (2026-07-22, `diff --scope all`)
+
+Verified against the real replica after implementation:
+
+- **Shipped & confirmed:** NY missing_bill 3,481 → 1 (the genuine `A33878`); WI wrong_data 55 → 3; MA missing_bill 8 → 2 (the two genuine non-orders); auto-retirement resolved 3,548 stale FP rows; digest would drop from 4,342 → ~795 anomalies (−82%).
+- **CA (§4) deferred — spec assumption wrong.** LegiScan encodes the special session *in the number* (`ABX1 1` → norm `ABX11`); Quorum stores the *base* number (`A.B.1` → `AB1`) with the "X1" marker only in the **session name** ("2025 Spec Session 1 - X1", id 3736). Sibling-by-number matching therefore never fires. The §4 code was inert on live data and its test passed only on a wrong-shaped synthetic fixture, so it was **reverted** (commit `d9517be`). M2b must: parse the X-ordinal out of the LegiScan number, select the Quorum sibling session by that ordinal (session-name match), and compare the **base** number.
+- **OH deferred — spec assumption wrong.** OH's `HR` resolutions carry LegiScan status 4 (passed/adopted) but Quorum status **1 (introduced)**, so the resolution-rank relaxation (min rank 4) correctly still flags them — they are NOT WI's adopted-at-rank-4 case. Whether they are genuine (Quorum behind on OH resolution adoption) or a distinct OH FP is an M2b doctrine question; ~236 remain. The WI-style resolution fix that DID ship is correct and unaffected.
 
 ## Why
 
