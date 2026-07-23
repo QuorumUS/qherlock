@@ -1,0 +1,28 @@
+{
+  "state": "CA",
+  "session_key": "2172",
+  "ordinal": 1,
+  "pairs": [
+    {"legiscan_number": "ABX11",  "quorum_label": "A.B.1",   "quorum_number": 1,  "quorum_bill_type": 3},
+    {"legiscan_number": "ABX12",  "quorum_label": "A.B.2",   "quorum_number": 2,  "quorum_bill_type": 3},
+    {"legiscan_number": "ABX13",  "quorum_label": "A.B.3",   "quorum_number": 3,  "quorum_bill_type": 3},
+    {"legiscan_number": "ABX14",  "quorum_label": "A.B.4",   "quorum_number": 4,  "quorum_bill_type": 3},
+    {"legiscan_number": "ABX15",  "quorum_label": "A.B.5",   "quorum_number": 5,  "quorum_bill_type": 3},
+    {"legiscan_number": "ABX16",  "quorum_label": "A.B.6",   "quorum_number": 6,  "quorum_bill_type": 3},
+    {"legiscan_number": "ABX17",  "quorum_label": "A.B.7",   "quorum_number": 7,  "quorum_bill_type": 3},
+    {"legiscan_number": "ABX18",  "quorum_label": "A.B.8",   "quorum_number": 8,  "quorum_bill_type": 3},
+    {"legiscan_number": "ABX19",  "quorum_label": "A.B.9",   "quorum_number": 9,  "quorum_bill_type": 3},
+    {"legiscan_number": "ABX110", "quorum_label": "A.B.10",  "quorum_number": 10, "quorum_bill_type": 3},
+    {"legiscan_number": "ABX111", "quorum_label": "A.B.11",  "quorum_number": 11, "quorum_bill_type": 3},
+    {"legiscan_number": "ABX112", "quorum_label": "A.B.12",  "quorum_number": 12, "quorum_bill_type": 3},
+    {"legiscan_number": "ABX113", "quorum_label": "A.B.13",  "quorum_number": 13, "quorum_bill_type": 3},
+    {"legiscan_number": "ABX114", "quorum_label": "A.B.14",  "quorum_number": 14, "quorum_bill_type": 3},
+    {"legiscan_number": "ABX115", "quorum_label": "A.B.15",  "quorum_number": 15, "quorum_bill_type": 3},
+    {"legiscan_number": "SBX11",  "quorum_label": "S.B.1",   "quorum_number": 1,  "quorum_bill_type": 2},
+    {"legiscan_number": "SBX12",  "quorum_label": "S.B.2",   "quorum_number": 2,  "quorum_bill_type": 2},
+    {"legiscan_number": "SBX13",  "quorum_label": "S.B.3",   "quorum_number": 3,  "quorum_bill_type": 2},
+    {"legiscan_number": "SBX14",  "quorum_label": "S.B.4",   "quorum_number": 4,  "quorum_bill_type": 2},
+    {"legiscan_number": "ACAX11", "quorum_label": "A.C.A.1", "quorum_number": 1,  "quorum_bill_type": 3}
+  ],
+  "genuine_missing": {"legiscan_number": "ABX199", "base_expected": "AB99"}
+}

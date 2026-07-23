@@ -4,7 +4,8 @@ from pathlib import Path
 
 from qherlock.diff.detectors import detect_bill_anomalies
 from qherlock.diff.matchers import (is_deliberately_unimported,
-                                    legiscan_number_norm, quorum_number_norm)
+                                    legiscan_number_norm, parse_extraordinary_number,
+                                    quorum_number_norm)
 from qherlock.quorum.reader import BillCounts, BillRow
 
 FIX = Path(__file__).parent / "fixtures"
@@ -75,3 +76,24 @@ def test_ma_orders_suppressed_and_genuine_flagged():
         assert is_deliberately_unimported(fx["state"], t), t
     for t in fx["still_flagged_titles"]:
         assert not is_deliberately_unimported(fx["state"], t), t
+
+
+def test_ca_extraordinary_family_all_match():
+    fx = _load("ca_extraordinary.json")
+    for p in fx["pairs"]:
+        q_norm = quorum_number_norm(p["quorum_label"], p["quorum_number"],
+                                    p["quorum_bill_type"], state=fx["state"])
+        cands = parse_extraordinary_number(p["legiscan_number"], {fx["ordinal"]})
+        assert any(base == q_norm for _, base in cands), \
+            f"{p['legiscan_number']} did not map to {p['quorum_label']}"
+
+
+def test_ca_extraordinary_genuine_missing_absent():
+    fx = _load("ca_extraordinary.json")
+    q_bases = {quorum_number_norm(p["quorum_label"], p["quorum_number"],
+                                  p["quorum_bill_type"], state=fx["state"])
+               for p in fx["pairs"]}
+    cands = parse_extraordinary_number(fx["genuine_missing"]["legiscan_number"], {fx["ordinal"]})
+    assert cands, "planted bill must still parse as extraordinary"
+    assert all(base not in q_bases for _, base in cands), \
+        "planted genuine-missing bill must not match any sibling base"
