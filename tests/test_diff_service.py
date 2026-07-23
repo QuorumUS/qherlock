@@ -410,6 +410,13 @@ def test_ca_extraordinary_bills_match_sibling_session_and_retire_fp(tmp_path):
             # ABX11 matched A.B.1 in the sibling session (LS passed=4 vs Quorum
             # enacted rank 6 -> clean); only the genuinely-absent ABX199 is missing.
             assert summary["counts_by_gap_type"]["missing_bill"]["new"] == 1
+            # Regression guard: the matched X1 bill must be scored against the
+            # SIBLING session's counts. If it were scored against the (empty)
+            # primary-session counts, ABX11's LegiScan sponsors+actions would
+            # manufacture 2 false incomplete_fields anomalies. Only the genuine
+            # ABX199 missing_bill may be new.
+            assert summary["anomalies_new"] == 1
+            assert "incomplete_fields" not in summary["counts_by_gap_type"]
             assert casefile.list_anomalies(gap_type="missing_bill", status="new")[0][
                 "bill_number_norm"] == "ABX199"
             # The prior FP for the now-matched ABX11 auto-retired.
