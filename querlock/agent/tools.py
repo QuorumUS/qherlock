@@ -2,24 +2,24 @@ import json
 
 from claude_agent_sdk import create_sdk_mcp_server, tool
 
-from qherlock import slack
-from qherlock.casefiles.store import CaseFileStore
-from qherlock.config import Settings
-from qherlock.diff.service import diff_many, diff_region
-from qherlock.investigate import investigate
-from qherlock.legiscan.cache import LegiScanCache
-from qherlock.legiscan.client import LegiScanClient
-from qherlock.legiscan.sync import sync_many, sync_state
-from qherlock.quorum import reader
-from qherlock.regions import parse_scope
+from querlock import slack
+from querlock.casefiles.store import CaseFileStore
+from querlock.config import Settings
+from querlock.diff.service import diff_many, diff_region
+from querlock.investigate import investigate
+from querlock.legiscan.cache import LegiScanCache
+from querlock.legiscan.client import LegiScanClient
+from querlock.legiscan.sync import sync_many, sync_state
+from querlock.quorum import reader
+from querlock.regions import parse_scope
 
 TOOL_NAMES = (
-    "mcp__qherlock__legiscan_sync",
-    "mcp__qherlock__diff",
-    "mcp__qherlock__list_anomalies",
-    "mcp__qherlock__get_anomaly",
-    "mcp__qherlock__investigate_bill",
-    "mcp__qherlock__post_slack",
+    "mcp__querlock__legiscan_sync",
+    "mcp__querlock__diff",
+    "mcp__querlock__list_anomalies",
+    "mcp__querlock__get_anomaly",
+    "mcp__querlock__investigate_bill",
+    "mcp__querlock__post_slack",
 )
 
 _EVIDENCE_CAP = 1500
@@ -86,10 +86,10 @@ def build_toolkit(settings: Settings, return_handlers: bool = False):
                     return _text({"error": f"replica schema drift: {err}"})
                 if len(regions) == 1:
                     summary = diff_region(regions[0], cache, casefile, conn,
-                                          sla_hours=settings.qherlock_freshness_sla_hours)
+                                          sla_hours=settings.querlock_freshness_sla_hours)
                 else:
                     summary = diff_many(regions, cache, casefile, conn,
-                                        sla_hours=settings.qherlock_freshness_sla_hours)
+                                        sla_hours=settings.querlock_freshness_sla_hours)
             finally:
                 conn.close()
         return _text(summary)
@@ -160,7 +160,7 @@ def build_toolkit(settings: Settings, return_handlers: bool = False):
 
     sdk_tools = [legiscan_sync_handler, diff_handler, list_anomalies_handler,
                  get_anomaly_handler, investigate_bill_handler, post_slack_handler]
-    server = create_sdk_mcp_server(name="qherlock", version="0.1.0", tools=sdk_tools)
+    server = create_sdk_mcp_server(name="querlock", version="0.1.0", tools=sdk_tools)
     if return_handlers:
         handlers = {"legiscan_sync": legiscan_sync_handler.handler,
                     "diff": diff_handler.handler,

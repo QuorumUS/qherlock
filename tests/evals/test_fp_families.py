@@ -2,11 +2,11 @@ import json
 from datetime import date
 from pathlib import Path
 
-from qherlock.diff.detectors import detect_bill_anomalies
-from qherlock.diff.matchers import (is_deliberately_unimported,
+from querlock.diff.detectors import detect_bill_anomalies
+from querlock.diff.matchers import (is_deliberately_unimported,
                                     legiscan_number_norm, parse_extraordinary_number,
                                     quorum_number_norm)
-from qherlock.quorum.reader import BillCounts, BillRow
+from querlock.quorum.reader import BillCounts, BillRow
 
 FIX = Path(__file__).parent / "fixtures"
 
@@ -26,7 +26,7 @@ def test_ny_amendment_family_all_match():
 
 def test_ny_genuine_missing_has_no_quorum_side():
     fx = _load("ny_amendment.json")
-    # Mirror qherlock/diff/service.py's index build: normalize every Quorum-side
+    # Mirror querlock/diff/service.py's index build: normalize every Quorum-side
     # pair into the same q_by_norm keyspace used for matching.
     q_by_norm = {
         quorum_number_norm(p["quorum_label"], p["quorum_number"], p["quorum_bill_type"],

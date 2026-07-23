@@ -1,6 +1,6 @@
 import re
 
-from qherlock.quorum.reader import SessionRow
+from querlock.quorum.reader import SessionRow
 
 # LegiScan prefix -> Quorum prefix, applied to the LEGISCAN side ONLY.
 # Quorum's own numbers must never be translated (H.R. 24 -> HR24 must not

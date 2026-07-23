@@ -2,7 +2,7 @@
 
 **Date:** 2026-07-22
 **Status:** SHIPPED (2026-07-22, on `main`) for NY / WI / MA / auto-retirement / digest / evals. CA (§4) and OH (part of §2) deferred to M2b after live acceptance disproved the spec's assumptions about their data shapes — see "Live acceptance outcome" below.
-**Parent:** M2 in `2026-07-20-qherlock-design.md` §15, split 2026-07-22 into M2a (this spec) and M2b (doctrine/taxonomy + CA/OH redo, separate spec later).
+**Parent:** M2 in `2026-07-20-querlock-design.md` §15, split 2026-07-22 into M2a (this spec) and M2b (doctrine/taxonomy + CA/OH redo, separate spec later).
 
 ## Live acceptance outcome (2026-07-22, `diff --scope all`)
 
@@ -34,7 +34,7 @@ overhaul beyond §7's digest instruction, declarative suppression rules,
 Slack surface changes (M2.5), the 45 unmapped 2026 sessions (correctly
 warned-and-skipped today; presentation is M2b's call).
 
-## 1. NY amendment-suffix normalization (`qherlock/diff/matchers.py`; collision guard in `qherlock/diff/service.py`)
+## 1. NY amendment-suffix normalization (`querlock/diff/matchers.py`; collision guard in `querlock/diff/service.py`)
 
 - New constant `AMENDMENT_SUFFIX_STATES: frozenset[str] = frozenset({"NY"})`.
 - `quorum_number_norm(label, number, bill_type=None, state=None)` gains the
@@ -49,7 +49,7 @@ warned-and-skipped today; presentation is M2b's call).
   missing-bill FPs elsewhere, so it must be observable.
 - LegiScan side unchanged (`S00115` already normalizes to `S115`).
 
-## 2. Resolution-aware status ranks (`qherlock/diff/detectors.py`)
+## 2. Resolution-aware status ranks (`querlock/diff/detectors.py`)
 
 - New constant `RESOLUTION_PREFIXES: frozenset[str]` =
   `{"HR", "SR", "AR", "JR", "HJR", "SJR", "AJR", "HCR", "SCR", "ACR", "SJRCA", "HJRCA"}`.
@@ -60,7 +60,7 @@ warned-and-skipped today; presentation is M2b's call).
   ("Passed") yields 4 (passed_second/adopted) instead of 6 (enacted). All
   other statuses unchanged.
 
-## 3. MA order-rule completion (`qherlock/diff/matchers.py` + detector wiring)
+## 3. MA order-rule completion (`querlock/diff/matchers.py` + detector wiring)
 
 - Step 1 is diagnosis: determine whether the missing_bill detector fails to
   call `is_deliberately_unimported`, or `IGNORED_TITLE_PREFIXES["MA"]` simply
@@ -69,7 +69,7 @@ warned-and-skipped today; presentation is M2b's call).
 - Fix accordingly and extend the prefix tuple from the 8 real titles.
   Suppressed cases count into the existing `ignored` rollup field.
 
-## 4. CA ABX cross-session matching (`qherlock/diff/matchers.py`)
+## 4. CA ABX cross-session matching (`querlock/diff/matchers.py`)
 
 Riskiest item — if planning reveals it needs structural change to
 `match_sessions`, it splits into its own plan rather than blocking 1-3.
@@ -86,7 +86,7 @@ Riskiest item — if planning reveals it needs structural change to
   family (49 cases + the 1 stale if implicated) disappears without
   suppressing genuine CA gaps in the fixtures.
 
-## 5. Anomaly auto-retirement (`qherlock/diff/service.py` + `qherlock/casefiles/store.py`)
+## 5. Anomaly auto-retirement (`querlock/diff/service.py` + `querlock/casefiles/store.py`)
 
 - After diffing a (region, session), compute the set of live fingerprints.
   Recorded anomalies for that exact (region, session_key) whose fingerprint
@@ -117,7 +117,7 @@ Riskiest item — if planning reveals it needs structural change to
   kept below adopted rank). Over-suppression is a test failure, same as
   under-suppression.
 
-## 7. Digest slimming (doctrine text only, `qherlock/agent/patrol.py`)
+## 7. Digest slimming (doctrine text only, `querlock/agent/patrol.py`)
 
 - DOCTRINE digest instruction changes: target ≤1,000 characters — one-line
   rollup (totals by gap type: new / recurring / resolved), top 3 case
@@ -125,7 +125,7 @@ Riskiest item — if planning reveals it needs structural change to
   non-empty, LegiScan budget line. Everything else belongs in the full patrol
   report, not Slack.
 - No formatting machinery (threads, Block Kit, mentions): the Slack surface
-  is being unified by Nei in actacollecta (M2.5 in the roadmap); Qherlock
+  is being unified by Nei in actacollecta (M2.5 in the roadmap); Querlock
   adopts that surface when it lands.
 
 ## Acceptance

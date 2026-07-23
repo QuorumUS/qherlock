@@ -8,9 +8,9 @@ stale -> wrong_data across patrols; distinct fingerprints, intended.
 import re
 from datetime import date, datetime, timedelta
 
-from qherlock.casefiles.models import Anomaly
-from qherlock.diff.matchers import normalize_bill_number
-from qherlock.quorum.reader import BillCounts, BillRow
+from querlock.casefiles.models import Anomaly
+from querlock.diff.matchers import normalize_bill_number
+from querlock.quorum.reader import BillCounts, BillRow
 
 INCOMPLETE_FIELDS = ("sponsors", "actions", "texts", "votes")
 

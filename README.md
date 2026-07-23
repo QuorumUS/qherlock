@@ -1,10 +1,10 @@
-# Qherlock 🔍
+# Querlock 🔍
 
 *An AI agent that audits Quorum's legislative data against LegiScan — and fixes what it finds.*
 
 ## Mission
 
-Qherlock is a standalone auditor that continuously compares [LegiScan](https://legiscan.com/legiscan) against Quorum's production data for **US federal + all 50 states** (current sessions, including carryover), and detects four kinds of gaps:
+Querlock is a standalone auditor that continuously compares [LegiScan](https://legiscan.com/legiscan) against Quorum's production data for **US federal + all 50 states** (current sessions, including carryover), and detects four kinds of gaps:
 
 | Gap type | Meaning |
 |---|---|
@@ -17,20 +17,20 @@ Each anomaly is diagnosed with Claude and closed through a guarded fix chain —
 
 ## Trust model
 
-Qherlock earns autonomy in stages — same code, one switch:
+Querlock earns autonomy in stages — same code, one switch:
 
 1. **Shadow mode** *(start here)* — detect, diagnose, and report to `#quentin-bot`. No writes, ever.
 2. **Auto-fix** *(once trusted)* — fixes enabled behind a flag, dry-run by default, hard-capped per cycle, kill switch always armed.
 
 ## Daily patrol (launchd)
 
-    mkdir -p ~/Library/Logs/qherlock
-    cp deploy/us.quorum.qherlock.plist ~/Library/LaunchAgents/
-    $EDITOR ~/Library/LaunchAgents/us.quorum.qherlock.plist   # replace __REPO__ and __HOME__
-    plutil -lint ~/Library/LaunchAgents/us.quorum.qherlock.plist
-    launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/us.quorum.qherlock.plist
-    launchctl kickstart -k gui/$(id -u)/us.quorum.qherlock    # smoke-run now
-    # unload after edits: launchctl bootout gui/$(id -u)/us.quorum.qherlock
+    mkdir -p ~/Library/Logs/querlock
+    cp deploy/us.quorum.querlock.plist ~/Library/LaunchAgents/
+    $EDITOR ~/Library/LaunchAgents/us.quorum.querlock.plist   # replace __REPO__ and __HOME__
+    plutil -lint ~/Library/LaunchAgents/us.quorum.querlock.plist
+    launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/us.quorum.querlock.plist
+    launchctl kickstart -k gui/$(id -u)/us.quorum.querlock    # smoke-run now
+    # unload after edits: launchctl bootout gui/$(id -u)/us.quorum.querlock
 
 Prereqs: `.env` must have `SLACK_BOT_TOKEN` and `SLACK_CHANNEL_ID` (the bot
 must be `/invite`d into #quentin-bot; `SLACK_APP_TOKEN` is unused) and
@@ -39,7 +39,7 @@ must be `/invite`d into #quentin-bot; `SLACK_APP_TOKEN` is unused) and
 that is the intended failure mode; the daily digest doubles as the liveness
 heartbeat). Before the first scheduled run, pre-warm the cache once:
 
-    python3 -m uv run qherlock sync --scope all
+    python3 -m uv run querlock sync --scope all
 
 The first full sync ingests ~85 dataset ZIPs and takes a while; subsequent daily
 runs are ~85 cheap masterlist calls.

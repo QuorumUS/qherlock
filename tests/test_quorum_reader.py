@@ -2,7 +2,7 @@ import sqlite3
 
 import pytest
 
-from qherlock.quorum import reader
+from querlock.quorum import reader
 
 
 _REPLICA_SCHEMA = """

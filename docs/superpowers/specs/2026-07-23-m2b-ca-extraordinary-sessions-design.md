@@ -8,7 +8,7 @@ session 3736 and auto-retired (0 X-family new); the 29 ACR `wrong_data` and 1 `S
 genuine scraping gap). 168 tests green offline. A final-review-caught latent fingerprint
 collision (extraordinary anomaly keyed on base vs the same-session ordinal bill) was fixed
 pre-merge (`127ca57`): extraordinary anomalies are keyed on the fused LegiScan number.
-**Parent:** M2b in `2026-07-20-qherlock-design.md` §15 and `2026-07-22-m2a-detection-fixes-design.md`
+**Parent:** M2b in `2026-07-20-querlock-design.md` §15 and `2026-07-22-m2a-detection-fixes-design.md`
 ("Live acceptance outcome"). M2b is a basket of independent pieces; this spec is
 the first slice — the deferred **detection-correctness** work (CA + OH). Doctrine/
 taxonomy, CA ACR, and the M2b backlog are separate specs (see §7).
@@ -68,7 +68,7 @@ Recorded before-state (`data/casefile.db`, all `status='new'`): CA 20 `missing_b
 
 M2a shipped the quiet baseline but deferred CA and OH after live acceptance disproved
 its assumptions. This spec closes the CA detection defect (the one clean, verified
-false-positive family remaining) and records the OH conclusion, so Qherlock moves
+false-positive family remaining) and records the OH conclusion, so Querlock moves
 toward the graduation bar — "arrive in actacollecta already quiet" — on verified
 ground rather than on the M2a-era guesses.
 
@@ -79,7 +79,7 @@ ground rather than on the M2a-era guesses.
 3. CA: **X1 matching only**; the 29 ACR are deferred to the doctrine sub-project.
 4. Verification: tunnel was up; both sides verified live and baked in above.
 
-## 1. Sibling-session discovery (`qherlock/quorum/reader.py`)
+## 1. Sibling-session discovery (`querlock/quorum/reader.py`)
 
 - New read-only `get_special_sessions(conn, region) -> list[SessionRow]`: rows with
   `regular_session = FALSE` for the region **regardless of `current`** (the existing
@@ -95,7 +95,7 @@ ground rather than on the M2a-era guesses.
   "California 2025-2026 Regular Session" (`regular_session=false` but no ordinal
   marker) and older-biennium siblings (`3736` for 2025 is kept; `3665` for 2024 is not).
 
-## 2. LegiScan extraordinary-number parse (`qherlock/diff/matchers.py`)
+## 2. LegiScan extraordinary-number parse (`querlock/diff/matchers.py`)
 
 - New `EXTRAORDINARY_SESSION_STATES: frozenset[str] = frozenset({"CA"})`. The whole
   mechanism is state-gated; no other region discovers siblings or attempts X-parsing.
@@ -112,7 +112,7 @@ ground rather than on the M2a-era guesses.
   candidate whose base actually exists in that ordinal's session rather than committing
   to a guess that could fall through to a false `missing_bill`.
 
-## 3. Diff wiring (`qherlock/diff/service.py`)
+## 3. Diff wiring (`querlock/diff/service.py`)
 
 - For a region in `EXTRAORDINARY_SESSION_STATES`, after the current regular
   `(ls, qs)` pair's `q_by_norm` is built, also build a

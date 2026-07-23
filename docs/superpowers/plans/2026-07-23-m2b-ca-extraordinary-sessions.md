@@ -10,8 +10,8 @@
 
 ## Global Constraints
 
-- **All Quorum SQL lives in `qherlock/quorum/reader.py`** (spec §7 of the design doc / reader module docstring). No SQL anywhere else.
-- **`qherlock/diff/detectors.py` and matcher functions stay pure** (no I/O) — golden-testable.
+- **All Quorum SQL lives in `querlock/quorum/reader.py`** (spec §7 of the design doc / reader module docstring). No SQL anywhere else.
+- **`querlock/diff/detectors.py` and matcher functions stay pure** (no I/O) — golden-testable.
 - **The whole mechanism is state-gated** via `EXTRAORDINARY_SESSION_STATES = frozenset({"CA"})`. No other region discovers siblings or parses fused numbers.
 - **Anomaly `session_key` stays the LegiScan session id** (`"2172"` for CA). Sibling sessions are consulted only — never added to `processed_sessions`, never independently diffed, never retire their own rows.
 - **No schema change / no migration** — retirement of the existing 20 FPs happens through the unchanged `retire_resolved` path.
@@ -23,7 +23,7 @@
 ### Task 1: `get_special_sessions` reader
 
 **Files:**
-- Modify: `qherlock/quorum/reader.py` (add SQL constant near `_BILLS_SQL` ~line 21, and a function near `get_current_sessions` ~line 110)
+- Modify: `querlock/quorum/reader.py` (add SQL constant near `_BILLS_SQL` ~line 21, and a function near `get_current_sessions` ~line 110)
 - Test: `tests/test_quorum_reader.py`
 
 **Interfaces:**
@@ -55,11 +55,11 @@ def test_get_special_sessions_includes_non_current(replica_factory):
 - [ ] **Step 2: Run test to verify it fails**
 
 Run: `.venv/bin/python -m pytest tests/test_quorum_reader.py::test_get_special_sessions_includes_non_current -v`
-Expected: FAIL with `AttributeError: module 'qherlock.quorum.reader' has no attribute 'get_special_sessions'`
+Expected: FAIL with `AttributeError: module 'querlock.quorum.reader' has no attribute 'get_special_sessions'`
 
 - [ ] **Step 3: Write minimal implementation**
 
-In `qherlock/quorum/reader.py`, add the SQL constant after `_BILLS_SQL` (around line 28):
+In `querlock/quorum/reader.py`, add the SQL constant after `_BILLS_SQL` (around line 28):
 
 ```python
 _SPECIAL_SESSIONS_SQL = """
@@ -89,7 +89,7 @@ Expected: PASS
 - [ ] **Step 5: Commit**
 
 ```bash
-git add qherlock/quorum/reader.py tests/test_quorum_reader.py
+git add querlock/quorum/reader.py tests/test_quorum_reader.py
 git commit -m "feat: reader.get_special_sessions (non-current special sessions)"
 ```
 
@@ -98,7 +98,7 @@ git commit -m "feat: reader.get_special_sessions (non-current special sessions)"
 ### Task 2: `parse_extraordinary_number` matcher
 
 **Files:**
-- Modify: `qherlock/diff/matchers.py` (add near the other constants ~line 34 and a function after `legiscan_number_norm` ~line 59)
+- Modify: `querlock/diff/matchers.py` (add near the other constants ~line 34 and a function after `legiscan_number_norm` ~line 59)
 - Test: `tests/test_matchers.py`
 
 **Interfaces:**
@@ -109,7 +109,7 @@ git commit -m "feat: reader.get_special_sessions (non-current special sessions)"
 
 - [ ] **Step 1: Write the failing test**
 
-Add to `tests/test_matchers.py` (and add `parse_extraordinary_number` to the top-of-file import from `qherlock.diff.matchers`):
+Add to `tests/test_matchers.py` (and add `parse_extraordinary_number` to the top-of-file import from `querlock.diff.matchers`):
 
 ```python
 def test_parse_extraordinary_number_basic():
@@ -140,7 +140,7 @@ Expected: FAIL with `ImportError: cannot import name 'parse_extraordinary_number
 
 - [ ] **Step 3: Write minimal implementation**
 
-In `qherlock/diff/matchers.py`, add the constant near `AMENDMENT_SUFFIX_STATES` (~line 34):
+In `querlock/diff/matchers.py`, add the constant near `AMENDMENT_SUFFIX_STATES` (~line 34):
 
 ```python
 # States where LegiScan fuses the extraordinary-session marker into the bill
@@ -175,7 +175,7 @@ Expected: 3 PASSED
 - [ ] **Step 5: Commit**
 
 ```bash
-git add qherlock/diff/matchers.py tests/test_matchers.py
+git add querlock/diff/matchers.py tests/test_matchers.py
 git commit -m "feat: parse_extraordinary_number + EXTRAORDINARY_SESSION_STATES"
 ```
 
@@ -184,7 +184,7 @@ git commit -m "feat: parse_extraordinary_number + EXTRAORDINARY_SESSION_STATES"
 ### Task 3: `extract_session_ordinal` + `select_sibling_special_sessions`
 
 **Files:**
-- Modify: `qherlock/diff/matchers.py` (add after `parse_extraordinary_number`)
+- Modify: `querlock/diff/matchers.py` (add after `parse_extraordinary_number`)
 - Test: `tests/test_matchers.py`
 
 **Interfaces:**
@@ -228,7 +228,7 @@ Expected: FAIL with `ImportError: cannot import name 'extract_session_ordinal'`
 
 - [ ] **Step 3: Write minimal implementation**
 
-In `qherlock/diff/matchers.py`, add after `parse_extraordinary_number`:
+In `querlock/diff/matchers.py`, add after `parse_extraordinary_number`:
 
 ```python
 _ORDINAL_RE = re.compile(r"\bX(\d+)\b")
@@ -279,7 +279,7 @@ Expected: 2 PASSED
 - [ ] **Step 5: Commit**
 
 ```bash
-git add qherlock/diff/matchers.py tests/test_matchers.py
+git add querlock/diff/matchers.py tests/test_matchers.py
 git commit -m "feat: extract_session_ordinal + select_sibling_special_sessions"
 ```
 
@@ -288,7 +288,7 @@ git commit -m "feat: extract_session_ordinal + select_sibling_special_sessions"
 ### Task 4: Wire sibling matching into `diff_region`
 
 **Files:**
-- Modify: `qherlock/diff/service.py` (imports ~line 6; extract a helper; the `for ls, qs in matched:` loop ~lines 43-99)
+- Modify: `querlock/diff/service.py` (imports ~line 6; extract a helper; the `for ls, qs in matched:` loop ~lines 43-99)
 - Test: `tests/test_diff_service.py`
 
 **Interfaces:**
@@ -306,7 +306,7 @@ def test_ca_extraordinary_bills_match_sibling_session_and_retire_fp(tmp_path):
     # (A.B.1) in a SEPARATE special session that is current=FALSE. The X1 bill must
     # match there (not be reported missing), a prior missing FP for it must retire,
     # and a genuinely-absent X1 bill must still be reported missing.
-    from qherlock.casefiles.models import Anomaly
+    from querlock.casefiles.models import Anomaly
 
     with LegiScanCache(tmp_path / "cache.db") as cache:
         cache.upsert_session("CA", {"session_id": 2172, "year_start": 2025, "year_end": 2026,
@@ -355,10 +355,10 @@ Expected: FAIL — currently `ABX11` is looked up as `ABX11` in the regular sess
 
 - [ ] **Step 3: Write minimal implementation**
 
-In `qherlock/diff/service.py`, extend the matchers import (~line 6):
+In `querlock/diff/service.py`, extend the matchers import (~line 6):
 
 ```python
-from qherlock.diff.matchers import (EXTRAORDINARY_SESSION_STATES,
+from querlock.diff.matchers import (EXTRAORDINARY_SESSION_STATES,
                                     is_deliberately_unimported, legiscan_number_norm,
                                     match_sessions, parse_extraordinary_number,
                                     quorum_number_norm, select_sibling_special_sessions)
@@ -470,7 +470,7 @@ Expected: all PASS, including the pre-existing `test_diff_finds_missing_bill`, `
 - [ ] **Step 5: Commit**
 
 ```bash
-git add qherlock/diff/service.py tests/test_diff_service.py
+git add querlock/diff/service.py tests/test_diff_service.py
 git commit -m "feat: match CA extraordinary-session bills to their non-current sibling session"
 ```
 
@@ -587,7 +587,7 @@ Expected (as of 2026-07-23): `missing_bill new= 20`, `wrong_data new= 29`, `stal
 
 - [ ] **Step 2: Run the CA diff against the live replica**
 
-Run: `.venv/bin/qherlock diff --scope CA`
+Run: `.venv/bin/querlock diff --scope CA`
 Expected: completes without error; the summary shows a non-zero `anomalies_resolved` (~20) and `missing_bill` new count of 0 for the X family.
 
 - [ ] **Step 3: Verify the after-state**

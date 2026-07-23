@@ -1,14 +1,14 @@
 from datetime import datetime, timezone
 
-from qherlock.casefiles.models import Anomaly
-from qherlock.casefiles.store import CaseFileStore
-from qherlock.diff.detectors import _as_date, compute_severity, detect_bill_anomalies
-from qherlock.diff.matchers import (EXTRAORDINARY_SESSION_STATES,
+from querlock.casefiles.models import Anomaly
+from querlock.casefiles.store import CaseFileStore
+from querlock.diff.detectors import _as_date, compute_severity, detect_bill_anomalies
+from querlock.diff.matchers import (EXTRAORDINARY_SESSION_STATES,
                                     is_deliberately_unimported, legiscan_number_norm,
                                     match_sessions, parse_extraordinary_number,
                                     quorum_number_norm, select_sibling_special_sessions)
-from qherlock.legiscan.cache import LegiScanCache
-from qherlock.quorum import reader
+from querlock.legiscan.cache import LegiScanCache
+from querlock.quorum import reader
 
 TOP_CASES_LIMIT = 10
 ROLLUP_TOP_LIMIT = 15

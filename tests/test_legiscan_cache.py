@@ -2,7 +2,7 @@ import io
 import json
 import zipfile
 
-from qherlock.legiscan.cache import LegiScanCache
+from querlock.legiscan.cache import LegiScanCache
 
 
 def make_dataset_zip(bills: list[dict]) -> bytes:

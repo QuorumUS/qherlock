@@ -10,7 +10,7 @@ import structlog
 
 MAX_CHARS = 3500
 _POINTER = "\n…[truncated — full details in casefile.db / patrol transcript]"
-_HEADERS = {"digest": ":mag: *Qherlock digest*", "alert": ":rotating_light: *Qherlock alert*"}
+_HEADERS = {"digest": ":mag: *Querlock digest*", "alert": ":rotating_light: *Querlock alert*"}
 _API_URL = "https://slack.com/api/chat.postMessage"
 
 log = structlog.get_logger()

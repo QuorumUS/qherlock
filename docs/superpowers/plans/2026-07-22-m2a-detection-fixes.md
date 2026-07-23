@@ -21,11 +21,11 @@
 
 ## File Structure
 
-- `qherlock/diff/matchers.py` — `quorum_number_norm` gains `state`; new `AMENDMENT_SUFFIX_STATES` + suffix strip; MA rule fix (Tasks 1, 3, 4).
-- `qherlock/diff/detectors.py` — `RESOLUTION_PREFIXES` + resolution-aware status rank (Task 2).
-- `qherlock/diff/service.py` — collision guard, cross-session ABX lookup wiring, live-fingerprint collection + retirement call, `resolved` in rollup (Tasks 1, 4, 5).
-- `qherlock/casefiles/store.py` — `resolved_at` column + `retire_resolved` (Task 5).
-- `qherlock/agent/patrol.py` — DOCTRINE digest instruction (Task 7).
+- `querlock/diff/matchers.py` — `quorum_number_norm` gains `state`; new `AMENDMENT_SUFFIX_STATES` + suffix strip; MA rule fix (Tasks 1, 3, 4).
+- `querlock/diff/detectors.py` — `RESOLUTION_PREFIXES` + resolution-aware status rank (Task 2).
+- `querlock/diff/service.py` — collision guard, cross-session ABX lookup wiring, live-fingerprint collection + retirement call, `resolved` in rollup (Tasks 1, 4, 5).
+- `querlock/casefiles/store.py` — `resolved_at` column + `retire_resolved` (Task 5).
+- `querlock/agent/patrol.py` — DOCTRINE digest instruction (Task 7).
 - `tests/evals/` — new: fixtures + eval tests (Task 6); `tests/test_matchers.py`, `tests/test_detectors.py`, `tests/test_diff_service.py`, `tests/test_casefiles.py` — unit tests per task.
 
 ---
@@ -33,8 +33,8 @@
 ### Task 1: NY amendment-suffix normalization + collision guard
 
 **Files:**
-- Modify: `qherlock/diff/matchers.py:52-59` (`quorum_number_norm`)
-- Modify: `qherlock/diff/service.py:44-48` (q_by_norm builder — collision guard + pass state)
+- Modify: `querlock/diff/matchers.py:52-59` (`quorum_number_norm`)
+- Modify: `querlock/diff/service.py:44-48` (q_by_norm builder — collision guard + pass state)
 - Test: `tests/test_matchers.py`, `tests/test_diff_service.py`
 
 **Interfaces:**
@@ -74,7 +74,7 @@ def test_amendment_suffix_leaves_plain_numbers_alone():
 Run: `.venv/bin/pytest tests/test_matchers.py -k "amendment" -v`
 Expected: FAIL — `quorum_number_norm()` got an unexpected keyword argument `'state'`.
 
-- [ ] **Step 3: Implement in `qherlock/diff/matchers.py`**
+- [ ] **Step 3: Implement in `querlock/diff/matchers.py`**
 
 Add the constant after `BILL_TYPE_PREFIX` (line 25):
 
@@ -118,7 +118,7 @@ The service builds `q_by_norm`; if two rows collapse to one norm it must keep th
 
 ```python
 def test_ny_suffix_collision_is_warned_not_silent(tmp_path):
-    from qherlock.legiscan.cache import LegiScanCache
+    from querlock.legiscan.cache import LegiScanCache
     from tests.test_legiscan_cache import BILL, make_dataset_zip
     replica = _new_replica()
     # Contrived collision: base S115 AND amended S.115A in one NY session both -> S115.
@@ -145,7 +145,7 @@ def test_ny_suffix_collision_is_warned_not_silent(tmp_path):
 Run: `.venv/bin/pytest tests/test_diff_service.py -k "collision" -v`
 Expected: FAIL — no warning containing "collision".
 
-- [ ] **Step 7: Implement collision guard + pass state in `qherlock/diff/service.py`**
+- [ ] **Step 7: Implement collision guard + pass state in `querlock/diff/service.py`**
 
 Replace the q_by_norm builder (lines 44-48):
 
@@ -172,7 +172,7 @@ Expected: PASS (all — existing tests unaffected because `state` defaults to No
 - [ ] **Step 9: Commit**
 
 ```bash
-git add qherlock/diff/matchers.py qherlock/diff/service.py tests/test_matchers.py tests/test_diff_service.py
+git add querlock/diff/matchers.py querlock/diff/service.py tests/test_matchers.py tests/test_diff_service.py
 git commit -m "fix: NY amendment-suffix normalization + bill-number collision guard
 
 Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>"
@@ -183,7 +183,7 @@ Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>"
 ### Task 2: Resolution-aware status ranks
 
 **Files:**
-- Modify: `qherlock/diff/detectors.py:29-39` (add `RESOLUTION_PREFIXES`, resolution-aware min-rank lookup at line 109)
+- Modify: `querlock/diff/detectors.py:29-39` (add `RESOLUTION_PREFIXES`, resolution-aware min-rank lookup at line 109)
 - Test: `tests/test_detectors.py`
 
 **Interfaces:**
@@ -198,8 +198,8 @@ Append (mirror the existing `detect_bill_anomalies` call style in that file — 
 
 ```python
 from datetime import date
-from qherlock.quorum.reader import BillRow, BillCounts
-from qherlock.diff.detectors import detect_bill_anomalies
+from querlock.quorum.reader import BillRow, BillCounts
+from querlock.diff.detectors import detect_bill_anomalies
 
 def _qbill(status, mrad="2025-05-20"):
     return BillRow(id=1, label="x", number="1", bill_type=7,
@@ -227,17 +227,17 @@ def test_regular_bill_passed_but_introduced_still_flagged():
 Run: `.venv/bin/pytest tests/test_detectors.py -k "resolution or regular_bill_passed" -v`
 Expected: FAIL — `test_resolution_passed_at_adopted_rank_not_flagged` fails (currently flagged: q_rank 4 < min_rank 6).
 
-- [ ] **Step 3: Implement in `qherlock/diff/detectors.py`**
+- [ ] **Step 3: Implement in `querlock/diff/detectors.py`**
 
 Add `import re` to the top of the file (detectors.py has no `re` import today) and the matchers import, right after the existing imports (line 11):
 
 ```python
 import re
 
-from qherlock.diff.matchers import normalize_bill_number
+from querlock.diff.matchers import normalize_bill_number
 ```
 
-(`import re` goes with the stdlib imports near line 8; the matchers import with the `qherlock.*` imports. No circular import: `matchers.py` imports only `qherlock.quorum.reader`, never `detectors`.)
+(`import re` goes with the stdlib imports near line 8; the matchers import with the `querlock.*` imports. No circular import: `matchers.py` imports only `querlock.quorum.reader`, never `detectors`.)
 
 Add after `LEGISCAN_MIN_RANK` (line 39):
 
@@ -275,7 +275,7 @@ Expected: PASS (all — new + existing).
 - [ ] **Step 5: Commit**
 
 ```bash
-git add qherlock/diff/detectors.py tests/test_detectors.py
+git add querlock/diff/detectors.py tests/test_detectors.py
 git commit -m "fix: resolutions require adopted rank, not enacted, for LegiScan Passed
 
 Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>"
@@ -286,7 +286,7 @@ Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>"
 ### Task 3: MA extension-order suppression
 
 **Files:**
-- Modify: `qherlock/diff/matchers.py:14-18, 62-67` (`IGNORED_TITLE_PREFIXES` + `is_deliberately_unimported`)
+- Modify: `querlock/diff/matchers.py:14-18, 62-67` (`IGNORED_TITLE_PREFIXES` + `is_deliberately_unimported`)
 - Test: `tests/test_matchers.py`
 
 **Interfaces:**
@@ -319,7 +319,7 @@ def test_ma_non_extension_orders_still_flagged():
 Run: `.venv/bin/pytest tests/test_matchers.py -k "ma_extension or ma_non" -v`
 Expected: FAIL — extension-order suffix titles are not suppressed.
 
-- [ ] **Step 3: Implement in `qherlock/diff/matchers.py`**
+- [ ] **Step 3: Implement in `querlock/diff/matchers.py`**
 
 Replace `IGNORED_TITLE_PREFIXES` (lines 14-18) with a structure carrying both prefix and substring markers:
 
@@ -362,7 +362,7 @@ Expected: PASS (all).
 - [ ] **Step 5: Commit**
 
 ```bash
-git add qherlock/diff/matchers.py tests/test_matchers.py
+git add querlock/diff/matchers.py tests/test_matchers.py
 git commit -m "fix: suppress MA suffix-form Extension Order titles
 
 Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>"
@@ -373,8 +373,8 @@ Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>"
 ### Task 4: CA extraordinary-session cross-session matching
 
 **Files:**
-- Modify: `qherlock/diff/service.py` (session-group lookup in `diff_region`)
-- Modify: `qherlock/diff/matchers.py` (helper `is_extraordinary_number`)
+- Modify: `querlock/diff/service.py` (session-group lookup in `diff_region`)
+- Modify: `querlock/diff/matchers.py` (helper `is_extraordinary_number`)
 - Test: `tests/test_matchers.py`, `tests/test_diff_service.py`
 
 **Interfaces:**
@@ -389,7 +389,7 @@ Background (real CA data): LegiScan folds extraordinary-session bills (`ABX1 15`
 
 ```python
 def test_is_extraordinary_number():
-    from qherlock.diff.matchers import is_extraordinary_number
+    from querlock.diff.matchers import is_extraordinary_number
     assert is_extraordinary_number("CA", "ABX1 15")
     assert is_extraordinary_number("CA", "SBX2 3")
     assert not is_extraordinary_number("CA", "AB 15")
@@ -402,7 +402,7 @@ def test_is_extraordinary_number():
 Run: `.venv/bin/pytest tests/test_matchers.py -k extraordinary -v`
 Expected: FAIL — `is_extraordinary_number` does not exist.
 
-- [ ] **Step 3: Implement the helper in `qherlock/diff/matchers.py`**
+- [ ] **Step 3: Implement the helper in `querlock/diff/matchers.py`**
 
 Add after `AMENDMENT_SUFFIX_STATES` block:
 
@@ -436,7 +436,7 @@ An ABX bill present only in a sibling Quorum special session must NOT be flagged
 
 ```python
 def test_ca_abx_found_in_sibling_special_session(tmp_path):
-    from qherlock.legiscan.cache import LegiScanCache
+    from querlock.legiscan.cache import LegiScanCache
     from tests.test_legiscan_cache import BILL, make_dataset_zip
     replica = _new_replica()
     replica.executescript(
@@ -464,7 +464,7 @@ def test_ca_abx_found_in_sibling_special_session(tmp_path):
 Run: `.venv/bin/pytest tests/test_diff_service.py -k abx -v`
 Expected: FAIL — ABX15 flagged missing (sibling session not consulted).
 
-- [ ] **Step 7: Implement sibling-session lookup in `qherlock/diff/service.py`**
+- [ ] **Step 7: Implement sibling-session lookup in `querlock/diff/service.py`**
 
 Inside `diff_region`, after `matched, warnings = match_sessions(...)`, build a sibling index once:
 
@@ -507,7 +507,7 @@ Expected: PASS (all).
 - [ ] **Step 10: Commit**
 
 ```bash
-git add qherlock/diff/matchers.py qherlock/diff/service.py tests/test_matchers.py tests/test_diff_service.py
+git add querlock/diff/matchers.py querlock/diff/service.py tests/test_matchers.py tests/test_diff_service.py
 git commit -m "fix: match CA extraordinary-session bills against sibling special sessions
 
 Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>"
@@ -518,8 +518,8 @@ Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>"
 ### Task 5: Anomaly auto-retirement
 
 **Files:**
-- Modify: `qherlock/casefiles/store.py:8-24` (schema + migration), add `retire_resolved`
-- Modify: `qherlock/diff/service.py` (collect live fingerprints, call retirement, add `resolved` to rollup)
+- Modify: `querlock/casefiles/store.py:8-24` (schema + migration), add `retire_resolved`
+- Modify: `querlock/diff/service.py` (collect live fingerprints, call retirement, add `resolved` to rollup)
 - Test: `tests/test_casefiles.py`, `tests/test_diff_service.py`
 
 **Interfaces:**
@@ -530,8 +530,8 @@ Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>"
 
 ```python
 def test_retire_resolved_flips_absent_new_anomalies(tmp_path):
-    from qherlock.casefiles.store import CaseFileStore
-    from qherlock.casefiles.models import Anomaly
+    from querlock.casefiles.store import CaseFileStore
+    from querlock.casefiles.models import Anomaly
     a = Anomaly(gap_type="missing_bill", region="NY", session_key="2188",
                 bill_number_norm="S115A")
     b = Anomaly(gap_type="missing_bill", region="NY", session_key="2188",
@@ -546,8 +546,8 @@ def test_retire_resolved_flips_absent_new_anomalies(tmp_path):
         assert cf.get_anomaly_by_fingerprint(b.fingerprint)["status"] == "new"
 
 def test_retire_resolved_scoped_to_given_sessions(tmp_path):
-    from qherlock.casefiles.store import CaseFileStore
-    from qherlock.casefiles.models import Anomaly
+    from querlock.casefiles.store import CaseFileStore
+    from querlock.casefiles.models import Anomaly
     other = Anomaly(gap_type="missing_bill", region="NY", session_key="9999",
                     bill_number_norm="S1")
     with CaseFileStore(tmp_path / "cf.db") as cf:
@@ -564,7 +564,7 @@ def test_retire_resolved_scoped_to_given_sessions(tmp_path):
 Run: `.venv/bin/pytest tests/test_casefiles.py -k retire -v`
 Expected: FAIL — `retire_resolved` / `get_anomaly_by_fingerprint` do not exist.
 
-- [ ] **Step 3: Implement in `qherlock/casefiles/store.py`**
+- [ ] **Step 3: Implement in `querlock/casefiles/store.py`**
 
 Add `resolved_at` to the schema (line 17, after `status`):
 
@@ -626,7 +626,7 @@ Expected: PASS (2 tests).
 
 ```python
 def test_diff_region_reports_resolved_count(tmp_path, cache, replica):
-    from qherlock.casefiles.models import Anomaly
+    from querlock.casefiles.models import Anomaly
     ghost = Anomaly(gap_type="wrong_data", region="CA", session_key="2172",
                     bill_number_norm="GONE99", field="status")
     with CaseFileStore(tmp_path / "casefile.db") as casefile:
@@ -641,7 +641,7 @@ def test_diff_region_reports_resolved_count(tmp_path, cache, replica):
 Run: `.venv/bin/pytest tests/test_diff_service.py -k resolved -v`
 Expected: FAIL — `KeyError: 'anomalies_resolved'`.
 
-- [ ] **Step 7: Implement in `qherlock/diff/service.py`**
+- [ ] **Step 7: Implement in `querlock/diff/service.py`**
 
 In `diff_region`, collect live fingerprints and processed sessions. In `record`, capture the fingerprint:
 
@@ -673,7 +673,7 @@ Expected: PASS (all).
 - [ ] **Step 9: Commit**
 
 ```bash
-git add qherlock/casefiles/store.py qherlock/diff/service.py tests/test_casefiles.py tests/test_diff_service.py
+git add querlock/casefiles/store.py querlock/diff/service.py tests/test_casefiles.py tests/test_diff_service.py
 git commit -m "feat: auto-retire anomalies that stop reproducing (scoped, reopenable)
 
 Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>"
@@ -765,10 +765,10 @@ import json
 from datetime import date
 from pathlib import Path
 
-from qherlock.diff.detectors import detect_bill_anomalies
-from qherlock.diff.matchers import (is_deliberately_unimported, is_extraordinary_number,
+from querlock.diff.detectors import detect_bill_anomalies
+from querlock.diff.matchers import (is_deliberately_unimported, is_extraordinary_number,
                                     legiscan_number_norm, quorum_number_norm)
-from qherlock.quorum.reader import BillCounts, BillRow
+from querlock.quorum.reader import BillCounts, BillRow
 
 FIX = Path(__file__).parent / "fixtures"
 
@@ -858,7 +858,7 @@ Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>"
 ### Task 7: Digest slimming (DOCTRINE)
 
 **Files:**
-- Modify: `qherlock/agent/patrol.py` (DOCTRINE digest step, ~lines 29-39)
+- Modify: `querlock/agent/patrol.py` (DOCTRINE digest step, ~lines 29-39)
 - Test: `tests/test_patrol.py`
 
 **Interfaces:**
@@ -868,7 +868,7 @@ Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>"
 
 ```python
 def test_doctrine_digest_targets_small_size():
-    from qherlock.agent.patrol import DOCTRINE
+    from querlock.agent.patrol import DOCTRINE
     assert "1000 character" in DOCTRINE or "1,000 character" in DOCTRINE
     assert "resolved" in DOCTRINE.lower()
 ```
@@ -878,7 +878,7 @@ def test_doctrine_digest_targets_small_size():
 Run: `.venv/bin/pytest tests/test_patrol.py -k doctrine_digest_targets -v`
 Expected: FAIL.
 
-- [ ] **Step 3: Implement in `qherlock/agent/patrol.py`**
+- [ ] **Step 3: Implement in `querlock/agent/patrol.py`**
 
 Replace the digest step (item 5 in the DOCTRINE string, currently beginning "5. Digest:") with:
 
@@ -900,7 +900,7 @@ Expected: PASS (all).
 - [ ] **Step 5: Commit**
 
 ```bash
-git add qherlock/agent/patrol.py tests/test_patrol.py
+git add querlock/agent/patrol.py tests/test_patrol.py
 git commit -m "feat: slim patrol digest to <1000 chars with resolved counts
 
 Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>"
@@ -919,7 +919,7 @@ Expected: PASS, 0 warnings. Report the exact count (was 138 pre-M2a; expect ~155
 
 - [ ] **Step 2: Confirm no regression in FP-family scope**
 
-Run: `grep -rn "slack_webhook\|SLACK_WEBHOOK" qherlock/ tests/`
+Run: `grep -rn "slack_webhook\|SLACK_WEBHOOK" querlock/ tests/`
 Expected: no matches (unrelated guard, confirms nothing reverted).
 
 - [ ] **Step 3 (manual, controller — requires tunnel): live diff sanity**

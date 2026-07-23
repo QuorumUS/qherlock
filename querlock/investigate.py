@@ -4,12 +4,12 @@ replica lookup. Behind the investigate_bill tool (Task 12).
 Every early exit returns a dict with "error" — never raises.
 """
 
-from qherlock.diff.matchers import (legiscan_number_norm, match_sessions, normalize_bill_number,
+from querlock.diff.matchers import (legiscan_number_norm, match_sessions, normalize_bill_number,
                                     quorum_number_norm)
-from qherlock.legiscan.cache import LegiScanCache
-from qherlock.legiscan.client import LegiScanError
-from qherlock.quorum import reader
-from qherlock.quorum.reader import BillCounts
+from querlock.legiscan.cache import LegiScanCache
+from querlock.legiscan.client import LegiScanError
+from querlock.quorum import reader
+from querlock.quorum.reader import BillCounts
 
 TITLE_CAP = 300
 ACTION_CAP = 120

@@ -2,7 +2,7 @@
 
 **Date:** 2026-07-21
 **Status:** approved (Victor, 2026-07-21)
-**Supersedes:** the webhook transport in `2026-07-20-qherlock-design.md` §5 (`post_slack`) and §12/§13 env references to `SLACK_WEBHOOK_URL`.
+**Supersedes:** the webhook transport in `2026-07-20-querlock-design.md` §5 (`post_slack`) and §12/§13 env references to `SLACK_WEBHOOK_URL`.
 
 ## Why
 
@@ -10,11 +10,11 @@ The M1 live smoke was blocked on a `#quentin-bot` webhook that does not exist.
 Nei provided the actual credential: a Quentin-specific Slack **bot token**
 (plus app token and channel ID), now in the repo `.env`. Quorum posts to Slack
 via bearer token + `chat.postMessage` (see `quorum-site/app/slack/client.py`),
-not webhooks. Qherlock switches to the same transport. Decision: **clean
+not webhooks. Querlock switches to the same transport. Decision: **clean
 replacement** — the webhook path is deleted, not kept as a fallback (it was
 never provisioned; dual paths are dead code).
 
-## Config (`qherlock/config.py`)
+## Config (`querlock/config.py`)
 
 | Setting | Env var | Notes |
 |---|---|---|
@@ -24,7 +24,7 @@ never provisioned; dual paths are dead code).
 `slack_webhook_url` is removed. `SLACK_APP_TOKEN` (xapp, Socket Mode only)
 stays in `.env` unused; `extra="ignore"` already tolerates it.
 
-## Transport (`qherlock/slack.py`)
+## Transport (`querlock/slack.py`)
 
 New signature: `post(token: str, channel: str, kind: str, text: str, http=None) -> dict`.
 
@@ -49,9 +49,9 @@ New signature: `post(token: str, channel: str, kind: str, text: str, http=None) 
 Mechanical update to `slack.post(settings.slack_bot_token,
 settings.slack_channel_id, kind, text)`:
 
-- `qherlock/agent/tools.py` — `post_slack` handler (tool description drops
+- `querlock/agent/tools.py` — `post_slack` handler (tool description drops
   the word "webhook").
-- `qherlock/agent/patrol.py` — 4 call sites (abort alerts ×2, mid-stream FAILED alert,
+- `querlock/agent/patrol.py` — 4 call sites (abort alerts ×2, mid-stream FAILED alert,
   final digest).
 
 ## Tests (`tests/test_slack.py`)
@@ -67,11 +67,11 @@ kind, unconfigured). New cases:
 
 ## Docs
 
-- `2026-07-20-qherlock-design.md` §5/§12/§13: webhook references annotated as
+- `2026-07-20-querlock-design.md` §5/§12/§13: webhook references annotated as
   superseded by this spec (historical text otherwise left intact).
 - README / deploy install docs: env prerequisites become `SLACK_BOT_TOKEN`,
   `SLACK_CHANNEL_ID` (and note `SLACK_APP_TOKEN` is unused), plus the
-  invite-the-bot-to-#quentin-bot prerequisite. `deploy/us.quorum.qherlock.plist` needs no
+  invite-the-bot-to-#quentin-bot prerequisite. `deploy/us.quorum.querlock.plist` needs no
   change (it inherits `.env` via WorkingDirectory).
 
 ## Out of scope

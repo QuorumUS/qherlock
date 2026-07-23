@@ -1,9 +1,9 @@
-from qherlock.diff.matchers import (
+from querlock.diff.matchers import (
     is_deliberately_unimported, legiscan_number_norm, normalize_bill_number,
     match_sessions, quorum_number_norm, parse_extraordinary_number,
     extract_session_ordinal, select_sibling_special_sessions,
 )
-from qherlock.quorum.reader import SessionRow
+from querlock.quorum.reader import SessionRow
 
 
 def test_normalize_pure_rules():

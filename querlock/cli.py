@@ -4,17 +4,17 @@ import os
 
 import typer
 
-from qherlock.agent.patrol import PatrolFatalError, run_patrol
-from qherlock.casefiles.store import CaseFileStore
-from qherlock.config import Settings
-from qherlock.diff.service import diff_many, diff_region
-from qherlock.legiscan.cache import LegiScanCache
-from qherlock.legiscan.client import LegiScanClient
-from qherlock.legiscan.sync import sync_many, sync_state
-from qherlock.quorum import reader
-from qherlock.regions import parse_scope
+from querlock.agent.patrol import PatrolFatalError, run_patrol
+from querlock.casefiles.store import CaseFileStore
+from querlock.config import Settings
+from querlock.diff.service import diff_many, diff_region
+from querlock.legiscan.cache import LegiScanCache
+from querlock.legiscan.client import LegiScanClient
+from querlock.legiscan.sync import sync_many, sync_state
+from querlock.quorum import reader
+from querlock.regions import parse_scope
 
-app = typer.Typer(help="Qherlock — LegiScan vs Quorum data-integrity patroller")
+app = typer.Typer(help="Querlock — LegiScan vs Quorum data-integrity patroller")
 
 
 def _settings() -> Settings:
@@ -24,7 +24,7 @@ def _settings() -> Settings:
 
 
 class _NoNetworkClient:
-    """QHERLOCK_TEST_MODE stand-in: makes `sync` exercisable without network."""
+    """QUERLOCK_TEST_MODE stand-in: makes `sync` exercisable without network."""
 
     def get_session_list(self, state):
         return []
@@ -56,7 +56,7 @@ def sync(scope: str = typer.Option("all", "--scope", help='"all", "CA", or "CA,T
     regions = _resolve_scope(scope, state)
     s = _settings()
     with LegiScanCache(s.data_dir / "cache.db") as cache:
-        client = (_NoNetworkClient() if os.environ.get("QHERLOCK_TEST_MODE") == "1"
+        client = (_NoNetworkClient() if os.environ.get("QUERLOCK_TEST_MODE") == "1"
                   else LegiScanClient(s.legiscan_api_key, on_call=lambda op: cache.add_call(op)))
         try:
             if len(regions) == 1:
@@ -93,10 +93,10 @@ def diff(scope: str = typer.Option("all", "--scope", help='"all", "CA", or "CA,T
                 raise typer.Exit(code=2)
             if len(regions) == 1:
                 summary = diff_region(regions[0], cache, casefile, conn,
-                                       sla_hours=s.qherlock_freshness_sla_hours)
+                                       sla_hours=s.querlock_freshness_sla_hours)
             else:
                 summary = diff_many(regions, cache, casefile, conn,
-                                     sla_hours=s.qherlock_freshness_sla_hours)
+                                     sla_hours=s.querlock_freshness_sla_hours)
         finally:
             conn.close()
     typer.echo(json.dumps(summary, indent=2))

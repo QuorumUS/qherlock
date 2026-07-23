@@ -12,10 +12,10 @@ class Settings(BaseSettings):
     quorum_replica_dsn: str = ""
     slack_bot_token: str = ""
     slack_channel_id: str = ""
-    qherlock_freshness_sla_hours: int = 72   # stale-detector SLA grace (spec §1)
+    querlock_freshness_sla_hours: int = 72   # stale-detector SLA grace (spec §1)
     legiscan_monthly_budget: int = 30000     # free-tier cap; sync degrades at 80%
-    qherlock_model: str = "claude-sonnet-5"
-    qherlock_max_turns: int = 100
+    querlock_model: str = "claude-sonnet-5"
+    querlock_max_turns: int = 100
     data_dir: Path = Path("data")
     runs_dir: Path = Path("runs")
 

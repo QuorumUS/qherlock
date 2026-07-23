@@ -1,6 +1,6 @@
 import httpx
 
-from qherlock import slack
+from querlock import slack
 
 
 def _client(handler):
@@ -22,7 +22,7 @@ def test_post_success_sends_bearer_token_channel_and_kind_header():
     assert seen["auth"] == "Bearer xoxb-test-token"
     assert seen["url"] == "https://slack.com/api/chat.postMessage"
     assert "C0QUENTIN" in seen["json"]
-    assert "Qherlock digest" in seen["json"] and "hello" in seen["json"]
+    assert "Querlock digest" in seen["json"] and "hello" in seen["json"]
 
 
 def test_not_configured_when_token_or_channel_missing():

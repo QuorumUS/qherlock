@@ -1,7 +1,7 @@
 import httpx
 import pytest
 
-from qherlock.legiscan.client import BASE_URL, LegiScanClient, LegiScanError
+from querlock.legiscan.client import BASE_URL, LegiScanClient, LegiScanError
 
 
 def make_client(handler, on_call=None):

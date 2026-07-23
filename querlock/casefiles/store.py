@@ -3,7 +3,7 @@ import sqlite3
 from datetime import datetime, timezone
 from pathlib import Path
 
-from qherlock.casefiles.models import Anomaly
+from querlock.casefiles.models import Anomaly
 
 _SCHEMA = """
 CREATE TABLE IF NOT EXISTS anomalies (

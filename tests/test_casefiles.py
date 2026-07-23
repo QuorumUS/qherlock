@@ -1,5 +1,5 @@
-from qherlock.casefiles.models import Anomaly
-from qherlock.casefiles.store import CaseFileStore
+from querlock.casefiles.models import Anomaly
+from querlock.casefiles.store import CaseFileStore
 
 
 def make_anomaly(number="AB12", severity=""):
@@ -90,8 +90,8 @@ def test_severity_persisted_and_refreshed_on_recurrence(tmp_path):
 
 
 def test_retire_resolved_flips_absent_new_anomalies(tmp_path):
-    from qherlock.casefiles.store import CaseFileStore
-    from qherlock.casefiles.models import Anomaly
+    from querlock.casefiles.store import CaseFileStore
+    from querlock.casefiles.models import Anomaly
     a = Anomaly(gap_type="missing_bill", region="NY", session_key="2188",
                 bill_number_norm="S115A")
     b = Anomaly(gap_type="missing_bill", region="NY", session_key="2188",
@@ -107,8 +107,8 @@ def test_retire_resolved_flips_absent_new_anomalies(tmp_path):
 
 
 def test_retire_resolved_scoped_to_given_sessions(tmp_path):
-    from qherlock.casefiles.store import CaseFileStore
-    from qherlock.casefiles.models import Anomaly
+    from querlock.casefiles.store import CaseFileStore
+    from querlock.casefiles.models import Anomaly
     other = Anomaly(gap_type="missing_bill", region="NY", session_key="9999",
                     bill_number_norm="S1")
     with CaseFileStore(tmp_path / "cf.db") as cf:

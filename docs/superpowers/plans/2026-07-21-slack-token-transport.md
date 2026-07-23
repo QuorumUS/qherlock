@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Replace qherlock's webhook Slack posting with bot-token `chat.postMessage` so patrols can post to #quentin-bot with the credentials Nei provided (already in `.env`).
+**Goal:** Replace querlock's webhook Slack posting with bot-token `chat.postMessage` so patrols can post to #quentin-bot with the credentials Nei provided (already in `.env`).
 
 **Architecture:** Clean replacement per `docs/superpowers/specs/2026-07-21-slack-token-design.md` — `slack.post` gains a `(token, channel, kind, text)` signature and POSTs to `https://slack.com/api/chat.postMessage` with a Bearer header; config swaps `slack_webhook_url` for `slack_bot_token` + `slack_channel_id`; the five call sites update mechanically. The webhook path is deleted, not kept.
 
@@ -26,10 +26,10 @@ moved together, so this is a single task/commit with test-first steps per
 file.
 
 **Files:**
-- Modify: `qherlock/slack.py` (whole file)
-- Modify: `qherlock/config.py:13`
-- Modify: `qherlock/agent/tools.py:154-157`
-- Modify: `qherlock/agent/patrol.py:85,93,117,146` (the 4 `slack.post` call sites)
+- Modify: `querlock/slack.py` (whole file)
+- Modify: `querlock/config.py:13`
+- Modify: `querlock/agent/tools.py:154-157`
+- Modify: `querlock/agent/patrol.py:85,93,117,146` (the 4 `slack.post` call sites)
 - Test: `tests/test_slack.py` (whole file), `tests/test_config.py:19,25-28`, `tests/test_agent_tools.py:23-32,238-259`, `tests/test_patrol.py:134,142,149,168,197,216,234,251-252`
 
 **Interfaces:**
@@ -43,7 +43,7 @@ Replace the whole file with:
 ```python
 import httpx
 
-from qherlock import slack
+from querlock import slack
 
 
 def _client(handler):
@@ -65,7 +65,7 @@ def test_post_success_sends_bearer_token_channel_and_kind_header():
     assert seen["auth"] == "Bearer xoxb-test-token"
     assert seen["url"] == "https://slack.com/api/chat.postMessage"
     assert "C0QUENTIN" in seen["json"]
-    assert "Qherlock digest" in seen["json"] and "hello" in seen["json"]
+    assert "Querlock digest" in seen["json"] and "hello" in seen["json"]
 
 
 def test_not_configured_when_token_or_channel_missing():
@@ -178,7 +178,7 @@ and
 Run: `.venv/bin/pytest tests/test_config.py -v`
 Expected: FAIL — `AttributeError: 'Settings' object has no attribute 'slack_bot_token'`.
 
-- [ ] **Step 5: Implement `qherlock/config.py`**
+- [ ] **Step 5: Implement `querlock/config.py`**
 
 Replace line 13 (`slack_webhook_url: str = ""`) with:
 
@@ -189,7 +189,7 @@ Replace line 13 (`slack_webhook_url: str = ""`) with:
 
 (`SLACK_APP_TOKEN` in `.env` stays unused — `extra="ignore"` tolerates it.)
 
-- [ ] **Step 6: Implement `qherlock/slack.py`**
+- [ ] **Step 6: Implement `querlock/slack.py`**
 
 Replace the whole file with:
 
@@ -206,7 +206,7 @@ import structlog
 
 MAX_CHARS = 3500
 _POINTER = "\n…[truncated — full details in casefile.db / patrol transcript]"
-_HEADERS = {"digest": ":mag: *Qherlock digest*", "alert": ":rotating_light: *Qherlock alert*"}
+_HEADERS = {"digest": ":mag: *Querlock digest*", "alert": ":rotating_light: *Querlock alert*"}
 _API_URL = "https://slack.com/api/chat.postMessage"
 
 log = structlog.get_logger()
@@ -256,7 +256,7 @@ into the standard error payload — that is what the new test asserts.)
 Run: `.venv/bin/pytest tests/test_slack.py tests/test_config.py -v`
 Expected: PASS (all).
 
-- [ ] **Step 8: Update call site in `qherlock/agent/tools.py`**
+- [ ] **Step 8: Update call site in `querlock/agent/tools.py`**
 
 Lines 154-157 — replace with:
 
@@ -269,7 +269,7 @@ Lines 154-157 — replace with:
         return _text(result)
 ```
 
-- [ ] **Step 9: Update the 4 call sites in `qherlock/agent/patrol.py`**
+- [ ] **Step 9: Update the 4 call sites in `querlock/agent/patrol.py`**
 
 Each `slack.post(settings.slack_webhook_url, <kind>, <text>)` becomes
 `slack.post(settings.slack_bot_token, settings.slack_channel_id, <kind>, <text>)`.
@@ -327,7 +327,7 @@ async def test_post_slack_bad_kind_and_missing_config(settings_no_slack):
 async def test_post_slack_passes_token_and_channel_from_settings(monkeypatch, settings_with_slack):
     seen = {}
     monkeypatch.setattr(
-        "qherlock.agent.tools.slack",
+        "querlock.agent.tools.slack",
         types.SimpleNamespace(post=lambda token, channel, kind, text:
                               seen.update(token=token, channel=channel) or {"ok": True}),
     )
@@ -351,12 +351,12 @@ Mechanical, five `make_settings` kwargs and three positional asserts:
 - [ ] **Step 12: Run the full suite**
 
 Run: `.venv/bin/pytest`
-Expected: PASS — 138 tests (136 previous − 1 dropped malformed-URL + 1 new ok-false + 1 new non-JSON + 1 new token-not-in-logs), 0 failures. Also confirm nothing still references the old name: `grep -rn "slack_webhook_url\|SLACK_WEBHOOK_URL" qherlock/ tests/` → no matches.
+Expected: PASS — 138 tests (136 previous − 1 dropped malformed-URL + 1 new ok-false + 1 new non-JSON + 1 new token-not-in-logs), 0 failures. Also confirm nothing still references the old name: `grep -rn "slack_webhook_url\|SLACK_WEBHOOK_URL" querlock/ tests/` → no matches.
 
 - [ ] **Step 13: Commit**
 
 ```bash
-git add qherlock/slack.py qherlock/config.py qherlock/agent/tools.py qherlock/agent/patrol.py tests/test_slack.py tests/test_config.py tests/test_agent_tools.py tests/test_patrol.py
+git add querlock/slack.py querlock/config.py querlock/agent/tools.py querlock/agent/patrol.py tests/test_slack.py tests/test_config.py tests/test_agent_tools.py tests/test_patrol.py
 git commit -m "feat: Slack posting via bot token chat.postMessage (drops webhook)
 
 Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>"
@@ -368,7 +368,7 @@ Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>"
 
 **Files:**
 - Modify: `README.md:35` (prereqs line)
-- Modify: `docs/superpowers/specs/2026-07-20-qherlock-design.md:97,251` (supersession notes)
+- Modify: `docs/superpowers/specs/2026-07-20-querlock-design.md:97,251` (supersession notes)
 
 **Interfaces:**
 - Consumes: Task 1's env var names `SLACK_BOT_TOKEN` / `SLACK_CHANNEL_ID`.
@@ -389,7 +389,7 @@ heartbeat). Before the first scheduled run, pre-warm the cache once:
 
 - [ ] **Step 2: Annotate the original spec**
 
-In `docs/superpowers/specs/2026-07-20-qherlock-design.md`:
+In `docs/superpowers/specs/2026-07-20-querlock-design.md`:
 
 Line 97, in the `post_slack` table row, change `Via webhook.` to
 `Via bot token (superseded 2026-07-21, see 2026-07-21-slack-token-design.md).`
@@ -402,7 +402,7 @@ label and all files under `docs/superpowers/plans/` untouched (historical).
 - [ ] **Step 3: Commit**
 
 ```bash
-git add README.md docs/superpowers/specs/2026-07-20-qherlock-design.md
+git add README.md docs/superpowers/specs/2026-07-20-querlock-design.md
 git commit -m "docs: env prereqs + spec supersession notes for Slack bot token
 
 Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>"
@@ -423,11 +423,11 @@ Run (from the repo root, where `.env` lives):
 
 ```bash
 .venv/bin/python -c "
-from qherlock.config import Settings
-from qherlock import slack
+from querlock.config import Settings
+from querlock import slack
 s = Settings()
 print(slack.post(s.slack_bot_token, s.slack_channel_id, 'digest',
-                 'live smoke: qherlock bot-token transport'))"
+                 'live smoke: querlock bot-token transport'))"
 ```
 
 Expected: `{'ok': True, 'chars': ..., 'truncated': False}` and the message

@@ -4,10 +4,10 @@ import types
 
 import pytest
 
-from qherlock.agent.patrol import DOCTRINE, PatrolFatalError, build_options, write_transcript_line
-from qherlock.agent.tools import TOOL_NAMES, build_toolkit
-from qherlock.casefiles.store import CaseFileStore
-from qherlock.config import Settings
+from querlock.agent.patrol import DOCTRINE, PatrolFatalError, build_options, write_transcript_line
+from querlock.agent.tools import TOOL_NAMES, build_toolkit
+from querlock.casefiles.store import CaseFileStore
+from querlock.config import Settings
 
 
 def make_settings(tmp_path, monkeypatch, **kwargs):
@@ -32,10 +32,10 @@ def test_build_options_wires_model_tools_and_turns(tmp_path, monkeypatch):
     assert options.max_turns == 100
     assert options.allowed_tools == list(TOOL_NAMES)
     assert options.system_prompt == DOCTRINE
-    assert "qherlock" in options.mcp_servers
+    assert "querlock" in options.mcp_servers
     assert options.tools == []
     assert options.permission_mode is None
-    assert options.mcp_servers["qherlock"] is server
+    assert options.mcp_servers["querlock"] is server
 
 
 def test_options_allow_exactly_six_tools(tmp_path, monkeypatch):
@@ -62,7 +62,7 @@ def test_build_options_no_credentials_uses_logged_in_claude(tmp_path, monkeypatc
 
 
 def test_doctrine_digest_targets_small_size():
-    from qherlock.agent.patrol import DOCTRINE
+    from querlock.agent.patrol import DOCTRINE
     assert "1000 character" in DOCTRINE or "1,000 character" in DOCTRINE
     assert "resolved" in DOCTRINE.lower()
 
@@ -92,7 +92,7 @@ def _raise_oserror(*a, **k):
 
 
 async def test_run_patrol_happy_path_finishes_and_returns(tmp_path, monkeypatch):
-    from qherlock.agent import patrol as patrol_mod
+    from querlock.agent import patrol as patrol_mod
 
     settings = make_settings(tmp_path, monkeypatch)
     captured = {}
@@ -116,7 +116,7 @@ async def test_run_patrol_happy_path_finishes_and_returns(tmp_path, monkeypatch)
 
 async def test_no_dsn_skips_preflight_and_runs(tmp_path, monkeypatch):
     """No quorum_replica_dsn configured (the dev flow) — preflight is skipped entirely."""
-    from qherlock.agent import patrol as patrol_mod
+    from querlock.agent import patrol as patrol_mod
 
     settings = make_settings(tmp_path, monkeypatch)
     assert not settings.quorum_replica_dsn
@@ -136,7 +136,7 @@ async def test_no_dsn_skips_preflight_and_runs(tmp_path, monkeypatch):
 
 
 async def test_preflight_connect_failure_posts_alert_and_raises(tmp_path, monkeypatch):
-    from qherlock.agent import patrol as patrol_mod
+    from querlock.agent import patrol as patrol_mod
 
     settings = make_settings(tmp_path, monkeypatch, quorum_replica_dsn="postgresql://x",
                               slack_bot_token="xoxb-test", slack_channel_id="C123")
@@ -151,7 +151,7 @@ async def test_preflight_connect_failure_posts_alert_and_raises(tmp_path, monkey
 
 
 async def test_preflight_schema_drift_posts_alert_and_raises(tmp_path, monkeypatch):
-    from qherlock.agent import patrol as patrol_mod
+    from querlock.agent import patrol as patrol_mod
 
     settings = make_settings(tmp_path, monkeypatch, quorum_replica_dsn="postgresql://x",
                               slack_bot_token="xoxb-test", slack_channel_id="C123")
@@ -178,7 +178,7 @@ async def test_preflight_schema_drift_posts_alert_and_raises(tmp_path, monkeypat
 
 
 async def test_run_patrol_stats_include_result_message_fields(tmp_path, monkeypatch):
-    from qherlock.agent import patrol as patrol_mod
+    from querlock.agent import patrol as patrol_mod
 
     settings = make_settings(tmp_path, monkeypatch)
 
@@ -200,7 +200,7 @@ async def test_run_patrol_stats_include_result_message_fields(tmp_path, monkeypa
 
 
 async def test_footer_digest_posted_when_slack_configured(tmp_path, monkeypatch):
-    from qherlock.agent import patrol as patrol_mod
+    from querlock.agent import patrol as patrol_mod
 
     settings = make_settings(tmp_path, monkeypatch, slack_bot_token="xoxb-test", slack_channel_id="C123")
     posts = []
@@ -219,7 +219,7 @@ async def test_footer_digest_posted_when_slack_configured(tmp_path, monkeypatch)
 
 
 async def test_footer_digest_shows_na_when_no_cost(tmp_path, monkeypatch):
-    from qherlock.agent import patrol as patrol_mod
+    from querlock.agent import patrol as patrol_mod
 
     settings = make_settings(tmp_path, monkeypatch, slack_bot_token="xoxb-test", slack_channel_id="C123")
     posts = []
@@ -237,7 +237,7 @@ async def test_footer_digest_shows_na_when_no_cost(tmp_path, monkeypatch):
 
 
 async def test_run_patrol_finishes_row_on_midstream_error_and_posts_alert(tmp_path, monkeypatch):
-    from qherlock.agent import patrol as patrol_mod
+    from querlock.agent import patrol as patrol_mod
 
     settings = make_settings(tmp_path, monkeypatch, slack_bot_token="xoxb-test", slack_channel_id="C123")
     posts = []

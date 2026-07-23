@@ -3,10 +3,10 @@ from datetime import date
 
 import pytest
 
-from qherlock.casefiles.store import CaseFileStore
-from qherlock.diff.service import diff_many, diff_region, diff_state
-from qherlock.legiscan.cache import LegiScanCache
-from qherlock.quorum import reader
+from querlock.casefiles.store import CaseFileStore
+from querlock.diff.service import diff_many, diff_region, diff_state
+from querlock.legiscan.cache import LegiScanCache
+from querlock.quorum import reader
 from tests.test_legiscan_cache import BILL, make_dataset_zip
 
 _REPLICA_SCHEMA = """
@@ -312,7 +312,7 @@ def test_second_run_counts_recurring(tmp_path):
 
 
 def test_ny_suffix_collision_is_warned_not_silent(tmp_path):
-    from qherlock.legiscan.cache import LegiScanCache
+    from querlock.legiscan.cache import LegiScanCache
     from tests.test_legiscan_cache import BILL, make_dataset_zip
     replica = _new_replica()
     # Contrived collision: base S115 AND amended S.115A in one NY session both -> S115.
@@ -340,7 +340,7 @@ def test_empty_cache_session_does_not_retire_anomalies(tmp_path):
     # left it with zero bills, or a rebuilt cache.db) must NOT authorize
     # retirement of prior anomalies for that (region, session_key), even though
     # it matches a Quorum session and the diff loop runs for it.
-    from qherlock.casefiles.models import Anomaly
+    from querlock.casefiles.models import Anomaly
 
     with LegiScanCache(tmp_path / "cache.db") as cache:
         cache.upsert_session("CA", {"session_id": 9501, "year_start": 2025, "year_end": 2026,
@@ -371,7 +371,7 @@ def test_ca_extraordinary_bills_match_sibling_session_and_retire_fp(tmp_path):
     # (A.B.1) in a SEPARATE special session that is current=FALSE. The X1 bill must
     # match there (not be reported missing), a prior missing FP for it must retire,
     # and a genuinely-absent X1 bill must still be reported missing.
-    from qherlock.casefiles.models import Anomaly
+    from querlock.casefiles.models import Anomaly
 
     with LegiScanCache(tmp_path / "cache.db") as cache:
         cache.upsert_session("CA", {"session_id": 2172, "year_start": 2025, "year_end": 2026,
@@ -464,7 +464,7 @@ def test_ca_extraordinary_and_regular_same_base_get_distinct_fingerprints(tmp_pa
 
 
 def test_diff_region_reports_resolved_count(tmp_path, cache, replica):
-    from qherlock.casefiles.models import Anomaly
+    from querlock.casefiles.models import Anomaly
     ghost = Anomaly(gap_type="wrong_data", region="CA", session_key="2172",
                     bill_number_norm="GONE99", field="status")
     with CaseFileStore(tmp_path / "casefile.db") as casefile:
