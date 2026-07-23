@@ -424,6 +424,45 @@ def test_ca_extraordinary_bills_match_sibling_session_and_retire_fp(tmp_path):
             assert summary["anomalies_resolved"] >= 1
 
 
+def test_ca_extraordinary_and_regular_same_base_get_distinct_fingerprints(tmp_path):
+    # A regular AB1 and an extraordinary ABX11 (base AB1) both live in LegiScan
+    # session 2172. If the extraordinary anomaly were keyed on its base ("AB1"),
+    # it would collide with the regular AB1's fingerprint (same gap_type, region,
+    # session_key, field) and silently overwrite it. They must stay distinct.
+    with LegiScanCache(tmp_path / "cache.db") as cache:
+        cache.upsert_session("CA", {"session_id": 2172, "year_start": 2025, "year_end": 2026,
+                                    "special": 0, "session_name": "2025-2026 Regular Session"})
+        reg = dict(BILL, bill_id=901, bill_number="AB1", status=4,
+                   history=[{"date": "2026-06-10"}], sponsors=[], texts=[], votes=[])
+        ext = dict(BILL, bill_id=902, bill_number="ABX11", status=4,
+                   history=[{"date": "2026-06-10"}], sponsors=[], texts=[], votes=[])
+        cache.ingest_dataset_zip(2172, make_dataset_zip([reg, ext]))
+
+        replica = _new_replica()
+        replica.executescript(
+            """
+            INSERT INTO app_legsession VALUES
+                (3570, 'ca', '2025-2026', '2025-2026', 2025, TRUE, TRUE),
+                (3736, 'ca', '2025 Spec Session 1 - X1', '2025 Spec Session 1 - X1',
+                 2025, FALSE, FALSE);
+            INSERT INTO bill_bill (id, session_id, label, number, current_general_status,
+                most_recent_action_date) VALUES (1, 3570, 'A.B.1', '1', 1, '2026-06-10');
+            INSERT INTO bill_billaction (bill_id, date, action_type) VALUES (1, '2026-06-10', 1);
+            INSERT INTO bill_bill (id, session_id, label, number, current_general_status,
+                most_recent_action_date) VALUES (2, 3736, 'A.B.1', '1', 1, '2026-06-10');
+            INSERT INTO bill_billaction (bill_id, date, action_type) VALUES (2, '2026-06-10', 1);
+            """
+        )
+        with CaseFileStore(tmp_path / "casefile.db") as casefile:
+            summary = diff_region("CA", cache, casefile, replica, today=date(2026, 7, 21))
+            # Both bills are genuinely anomalous (LS passed=4, Quorum introduced=1)
+            # and DISTINCT — no fingerprint collapse.
+            assert summary["counts_by_gap_type"]["wrong_data"]["new"] == 2
+            norms = {a["bill_number_norm"]
+                     for a in casefile.list_anomalies(gap_type="wrong_data", limit=10)}
+            assert norms == {"AB1", "ABX11"}
+
+
 def test_diff_region_reports_resolved_count(tmp_path, cache, replica):
     from qherlock.casefiles.models import Anomaly
     ghost = Anomaly(gap_type="wrong_data", region="CA", session_key="2172",

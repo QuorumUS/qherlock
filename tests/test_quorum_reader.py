@@ -139,11 +139,14 @@ def test_get_special_sessions_includes_non_current(replica_factory):
         INSERT INTO app_legsession VALUES
             (3570, 'ca', '2025-2026', '2025-2026', 2025, TRUE, TRUE),
             (3736, 'ca', '2025 Spec Session 1 - X1', '2025 Spec Session 1 - X1', 2025, FALSE, FALSE),
-            (3665, 'ca', '2024 Spec Session 1 - X1', '2024 Spec Session 1 - X1', 2024, FALSE, FALSE);
+            (3665, 'ca', '2024 Spec Session 1 - X1', '2024 Spec Session 1 - X1', 2024, FALSE, FALSE),
+            (3800, 'ca', '2026 Spec Session 2 - X2', '2026 Spec Session 2 - X2', 2026, TRUE, FALSE),
+            (4000, 'tx', 'TX Spec Session 1', 'TX Spec Session 1', 2025, FALSE, FALSE);
         """
     )
     specials = reader.get_special_sessions(conn, "CA")
     ids = {s.id for s in specials}
-    assert ids == {3736, 3665}                       # both special sessions, regardless of current
+    assert ids == {3736, 3665, 3800}                  # both special sessions, regardless of current
     assert all(s.regular_session is False for s in specials)
     assert 3570 not in ids                            # the regular session is excluded
+    assert 4000 not in ids                            # other region excluded

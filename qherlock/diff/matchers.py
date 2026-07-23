@@ -65,7 +65,7 @@ def legiscan_number_norm(state: str, raw: str | int | None) -> str:
     return f"{prefix}{num}"
 
 
-def parse_extraordinary_number(raw_number, ordinals) -> list[tuple[int, str]]:
+def parse_extraordinary_number(raw_number: str | int | None, ordinals) -> list[tuple[int, str]]:
     """For a LegiScan number that fuses the extraordinary-session marker into the
     number, return every (ordinal, base_norm) candidate for the given ordinals
     (e.g. 'ABX110' with ordinals {1} -> [(1, 'AB10')]). Empty when the number

@@ -97,3 +97,4 @@ def test_ca_extraordinary_genuine_missing_absent():
     assert cands, "planted bill must still parse as extraordinary"
     assert all(base not in q_bases for _, base in cands), \
         "planted genuine-missing bill must not match any sibling base"
+    assert any(base == fx["genuine_missing"]["base_expected"] for _, base in cands)

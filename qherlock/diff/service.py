@@ -95,17 +95,18 @@ def diff_region(region: str, cache: LegiScanCache, casefile: CaseFileStore,
                 continue
 
             # Extraordinary-session bills (state-gated) resolve against a sibling
-            # session's base number; the first candidate whose base exists wins.
+            # session's base number, but the anomaly is keyed on the fused LegiScan
+            # number (ABX11) — not the base — so it never collides with the ordinary
+            # same-numbered bill in the same session. First candidate whose base exists wins.
             q_bill = None
             q_bill_counts = q_counts
-            match_norm = norm
             sibling_session_id = None
             if siblings:
                 for ordinal, base in parse_extraordinary_number(bill["number"], siblings.keys()):
                     sib_map, sib_counts, sib_id = siblings[ordinal]
                     if base in sib_map:
-                        q_bill, q_bill_counts, match_norm, sibling_session_id = (
-                            sib_map[base], sib_counts, base, sib_id)
+                        q_bill, q_bill_counts, sibling_session_id = (
+                            sib_map[base], sib_counts, sib_id)
                         break
 
             if q_bill is None:
@@ -134,7 +135,7 @@ def diff_region(region: str, cache: LegiScanCache, casefile: CaseFileStore,
                 ), title)
             else:
                 for anomaly in detect_bill_anomalies(
-                        region, session_key, match_norm, bill, q_bill,
+                        region, session_key, norm, bill, q_bill,
                         q_bill_counts.get(q_bill.id, reader.BillCounts()),
                         sla_hours=sla_hours, today=today):
                     if sibling_session_id is not None:
