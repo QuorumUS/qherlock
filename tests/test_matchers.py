@@ -1,6 +1,7 @@
 from qherlock.diff.matchers import (
     is_deliberately_unimported, legiscan_number_norm, normalize_bill_number,
     match_sessions, quorum_number_norm, parse_extraordinary_number,
+    extract_session_ordinal, select_sibling_special_sessions,
 )
 from qherlock.quorum.reader import SessionRow
 
@@ -124,3 +125,26 @@ def test_parse_extraordinary_number_ambiguous_returns_all_candidates():
     # base actually exists in that ordinal's session (Task 4).
     got = parse_extraordinary_number("ABX110", {1, 11})
     assert (1, "AB10") in got and (11, "AB0") in got
+
+
+def test_extract_session_ordinal():
+    assert extract_session_ordinal("2025 Spec Session 1 - X1") == 1
+    assert extract_session_ordinal("2024 Spec Session 2 - X2") == 2
+    assert extract_session_ordinal("California 2025-2026 Regular Session") is None
+    assert extract_session_ordinal("2025-2026") is None
+    assert extract_session_ordinal(None) is None
+
+
+def test_select_sibling_special_sessions_keeps_biennium_rejects_stub_and_prior():
+    reg = SessionRow(3570, "ca", "2025-2026", "2025-2026", 2025, True, True)
+    specials = [
+        SessionRow(3736, "ca", "2025 Spec Session 1 - X1", "2025 Spec Session 1 - X1",
+                   2025, False, False),
+        SessionRow(3809, "ca", "California 2025-2026 Regular Session", None,
+                   2025, False, False),   # no X-ordinal -> rejected
+        SessionRow(3665, "ca", "2024 Spec Session 1 - X1", "2024 Spec Session 1 - X1",
+                   2024, False, False),   # prior biennium -> rejected
+    ]
+    got = select_sibling_special_sessions(reg, specials)
+    assert set(got) == {1}
+    assert got[1].id == 3736

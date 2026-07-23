@@ -80,6 +80,46 @@ def parse_extraordinary_number(raw_number, ordinals) -> list[tuple[int, str]]:
     return out
 
 
+_ORDINAL_RE = re.compile(r"\bX(\d+)\b")
+_SPEC_SESSION_RE = re.compile(r"SPEC(?:IAL)?\s+SESSION\s+(\d+)")
+
+
+def extract_session_ordinal(title: str | None) -> int | None:
+    """Extraordinary-session ordinal from a Quorum session title/name
+    ('2025 Spec Session 1 - X1' -> 1). Prefers the 'X<n>' marker; falls back to
+    'Spec[ial] Session <n>'. Returns None when neither is present."""
+    if not title:
+        return None
+    up = title.upper()
+    m = _ORDINAL_RE.search(up)
+    if m:
+        return int(m.group(1))
+    m = _SPEC_SESSION_RE.search(up)
+    return int(m.group(1)) if m else None
+
+
+def select_sibling_special_sessions(regular: SessionRow,
+                                    specials: list[SessionRow]) -> dict[int, SessionRow]:
+    """Map ordinal -> the Quorum special session that belongs to `regular`'s
+    biennium. A sibling is a special session whose start_year is within the
+    biennium window [y, y+1] (y = regular.start_year) AND whose title/name carries
+    an X-ordinal. Includes non-current sessions. First session wins per ordinal."""
+    if regular.start_year is None:
+        return {}
+    window = {regular.start_year, regular.start_year + 1}
+    out: dict[int, SessionRow] = {}
+    for s in specials:
+        if s.start_year not in window:
+            continue
+        ordinal = extract_session_ordinal(s.title)
+        if ordinal is None:
+            ordinal = extract_session_ordinal(s.session_name)
+        if ordinal is None or ordinal in out:
+            continue
+        out[ordinal] = s
+    return out
+
+
 def quorum_number_norm(label: str | None, number, bill_type: int | None = None,
                        state: str | None = None) -> str:
     """Quorum-side identity: normalized label; federal NULL-label fallback via
