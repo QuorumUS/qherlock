@@ -130,6 +130,7 @@ def test_parse_extraordinary_number_ambiguous_returns_all_candidates():
 def test_extract_session_ordinal():
     assert extract_session_ordinal("2025 Spec Session 1 - X1") == 1
     assert extract_session_ordinal("2024 Spec Session 2 - X2") == 2
+    assert extract_session_ordinal("2025 Special Session 3") == 3
     assert extract_session_ordinal("California 2025-2026 Regular Session") is None
     assert extract_session_ordinal("2025-2026") is None
     assert extract_session_ordinal(None) is None
@@ -148,3 +149,19 @@ def test_select_sibling_special_sessions_keeps_biennium_rejects_stub_and_prior()
     got = select_sibling_special_sessions(reg, specials)
     assert set(got) == {1}
     assert got[1].id == 3736
+
+
+def test_select_sibling_includes_second_biennium_year_and_first_wins():
+    reg = SessionRow(3570, "ca", "2025-2026", "2025-2026", 2025, True, True)
+    specials = [
+        SessionRow(3736, "ca", "2025 Spec Session 1 - X1", "2025 Spec Session 1 - X1",
+                   2025, False, False),
+        SessionRow(3800, "ca", "2026 Spec Session 2 - X2", "2026 Spec Session 2 - X2",
+                   2026, False, False),   # starts in the 2nd year of the biennium -> included
+        SessionRow(3999, "ca", "2025 Spec Session 1 - X1", "2025 Spec Session 1 - X1",
+                   2025, False, False),   # duplicate ordinal 1 -> first (3736) wins
+    ]
+    got = select_sibling_special_sessions(reg, specials)
+    assert set(got) == {1, 2}
+    assert got[1].id == 3736        # first session wins on duplicate ordinal
+    assert got[2].id == 3800        # second-biennium-year sibling included
